@@ -2,7 +2,6 @@ import axios, { AxiosRequestConfig, AxiosResponse } from 'axios'
 import { baseApiUrl, getToken } from "@/utils"
 import router from "@/router";
 import { Result } from "@/types";
-import { useAdminStoreHook } from "@/store";
 import { reactive, readonly } from 'vue';
 
 export const request = (params: any, options: any = {
@@ -46,8 +45,6 @@ export const request = (params: any, options: any = {
             (response: AxiosResponse) => {
                 // console.log("成功，请求结果：",response)
                 if (response.data.code === 700 || response.data.code === 701) {
-                    useAdminStoreHook().resetToken()
-                    useAdminStoreHook().setInfo({})
                     router.replace({
                         path: "/login",
                         query: {

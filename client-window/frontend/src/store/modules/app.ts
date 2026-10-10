@@ -1,12 +1,15 @@
 import { reactive, ref } from "vue"
 import store from "@/store"
 import { getSystemInfoApi } from "@/api/common";
-import { Result, SystemInfoType } from "@/types"
+import { MenusListsType, Result, SystemInfoType } from "@/types"
 import { defineStore } from "pinia"
 import { setCacheSystemInfo, getCacheSystemInfo, getCacheTemplateDark,setCacheTemplateDark, getCacheLayout, setCacheLayout } from "@/utils";
 export const useAppStore = defineStore("app", () => {
 
+    const menus = ref<MenusListsType>([])
+
     const isMapScriptLoad = ref<boolean>(false)
+
     const isMobile = ref<boolean>(false)
 
     const layout = ref<string>(getCacheLayout() || "default")
@@ -50,7 +53,7 @@ export const useAppStore = defineStore("app", () => {
         }
     }
 
-    return { isDark, setDark, systemInfo, getSystemInfo, isMapScriptLoad, setMapScriptLoad, layout, setLayout,setMobile,isMobile }
+    return {menus, isDark, setDark, systemInfo, getSystemInfo, isMapScriptLoad, setMapScriptLoad, layout, setLayout,setMobile,isMobile }
 })
 
 /** 在 setup 外使用 */

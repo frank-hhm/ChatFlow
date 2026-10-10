@@ -75,8 +75,6 @@ import forgetPassword from "./forget-password.vue";
 
 import {
     useAppStore,
-    useAdminStore,
-    useMenusStore,
     usePermissionStore,
 } from "@/store";
 import { getCacheLogin, setCacheLogin, setToken } from "@/utils";
@@ -123,8 +121,6 @@ const toLogin = () => {
             loginLoad.value = true;
             loginApi(loginForm)
                 .then((res: Result) => {
-                    useAdminStore().setInfo(res.data.user_info);
-                    useMenusStore().setMenus(res.data.menus.menusList);
                     setToken(res.data.token, res.data.expires_time);
                     permission.setHomeAction(res.data.menus.homePath);
                     permission.setRoleAction(res.data.menus.action);

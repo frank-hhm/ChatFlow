@@ -5,7 +5,7 @@
 <script lang="ts" setup>
 import { getCurrentInstance, onMounted, watch, onBeforeUnmount } from "vue";
 import { storeToRefs } from "pinia";
-import { useAdminStore, useAppStore, useEnumStore, useWebsocketStore } from "@/store";
+import { useAppStore, useEnumStore, useWebsocketStore } from "@/store";
 
 const { systemInfo, isDark } = storeToRefs(useAppStore());
 
@@ -15,7 +15,7 @@ const {
 } = getCurrentInstance() as any;
 
 useEnumStore().initEnum();
-
+useWebsocketStore().initWebSocket();
 useAppStore().getSystemInfo();
 useAppStore().setDark(isDark.value)
 const listenResizeFn = (e: any) => {
@@ -24,9 +24,6 @@ const listenResizeFn = (e: any) => {
 
 onMounted(() => {
     $utils.eventsListener('resize', listenResizeFn,true);
-    if (useAdminStore().token) {
-        useAdminStore().initInfo()
-    }
     setHeadLinks()
 });
 onBeforeUnmount(() => {

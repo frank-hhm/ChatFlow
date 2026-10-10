@@ -1,8 +1,4 @@
-import BasicLayout from "@/components/layouts/index.vue";
 
-import system from './system'
-import media from './media'
-import plugins from './plugins'
 
 export default [{
     path: '/',
@@ -11,7 +7,6 @@ export default [{
     redirect: {
         path: `/detail`
     },
-    component: BasicLayout,
     children: [
         {
             path: '/index',
@@ -30,9 +25,6 @@ export default [{
                 menu_name: "个人中心",
             },
             component: () => import('@/views/index/detail.vue')
-        },
-        ...system,
-        ...media,
-        ...plugins
+        }
     ]
 }]

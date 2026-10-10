@@ -9,8 +9,6 @@
                     </a-popconfirm>
                     <a-button size="mini" type="text" @click="onUpdatePass">修改密码</a-button>
                 </a-space>
-                <loginLogsComponent ref="loginLogsComponentRef"></loginLogsComponent>
-                <adminPassModal ref="adminPassModalRef"></adminPassModal>
             </template>
             <div class="detail-main">
                 <div class="avatar-main">
@@ -36,7 +34,6 @@
                         <div class="desc">{{ adminInfo.email }}</div>
                         <div class="ml20">
                             <a-button size="small" shape="circle" @click="onUpdateEmail"><icon-edit /></a-button>
-                            <emailComponent ref="emailComponentRef"></emailComponent>
                         </div>
                     </div>
                     <div class="detail-item">
@@ -48,7 +45,7 @@
                         <div class="content">
                             <div class="fz12">{{ adminInfo.last_ip?.value }}</div>
                             <div class="text-grey" v-if="adminInfo.last_ip?.text">{{ adminInfo.last_ip?.text
-                                }}</div>
+                            }}</div>
                         </div>
                     </div>
                 </div>
@@ -58,19 +55,12 @@
 </template>
 <script setup lang="ts">
 import { getCurrentInstance, ref, onMounted, watch } from "vue";
-import { useAdminStore, useAppStore } from "@/store";
 import router from "@/router/index";
 import { storeToRefs } from "pinia";
 import { logoutApi } from '@/api/login';
 import { Message } from '@arco-design/web-vue';
-import adminPassModal from "@/components/system/admin/update-password.vue";
-import { uploadAvatarApi } from "@/api/system/admin";
 import { Result, ResultError } from "@/types";
-import loginLogsComponent from "@/views/system/admin/login-logs.vue";
-import emailComponent from "@/components/system/admin/update-email.vue";
 
-
-const { adminInfo } = storeToRefs(useAdminStore());
 
 const {
     proxy,
@@ -88,31 +78,6 @@ const avatarProgress = ref<any>({
     percent: 0,
 });
 
-const onChangeAvatar = (file: File) => {
-    proxy?.$refs['cropperRef']?.close();
-    avatarLoading.value = true;
-    let fd = new FormData();
-    fd.append('file', file);
-    const { progress, request } = uploadAvatarApi(fd)
-    avatarProgress.value = progress
-    request.then((res: Result) => {
-        avatarProgress.value = {
-            parent: 100
-        }
-        useAdminStore().initInfo()
-        setTimeout(() => {
-            $utils.successMsg(res.message)
-            avatarLoading.value = false;
-        }, 500);
-    }).catch((err: ResultError) => {
-        $utils.errorMsg(err)
-        avatarProgress.value = {
-            parent: 0
-        }
-        avatarLoading.value = false;
-    });
-
-}
 
 const adminPassModalRef = ref<HTMLElement>();
 
@@ -126,7 +91,6 @@ const outLogin = () => {
         content: "正在退出...",
     });
     logoutApi().then(async (res: any) => {
-        useAdminStore().resetToken();
         $utils.setStorage("token", null);
         setTimeout(() => {
             Message.success({
@@ -150,6 +114,7 @@ const toLogin = () => {
     });
 };
 
+const adminInfo = ref<any>(null);
 
 const loginLogsComponentRef = ref<HTMLElement>();
 
@@ -161,6 +126,9 @@ const emailComponentRef = ref<HTMLElement>();
 
 const onUpdateEmail = () => {
     proxy?.$refs["emailComponentRef"]?.open();
+}
+
+const onChangeAvatar = (res: any) => {
 }
 
 </script>

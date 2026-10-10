@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import store, { useAdminStoreHook } from "@/store"
+import store from "@/store"
 import { defineStore } from "pinia"
 import { baseWsUrl, getToken, dispatchEvents } from "@/utils";
 import router from "@/router";
@@ -11,10 +11,10 @@ export const useWebsocketStore = defineStore("websocket", () => {
     const ws = ref<WebSocket | null>(null);
 
     const initWebSocket = async () => {
-        if (!ws.value && getToken()) {
+        if (!ws.value ) {
             isWebSocketOpen = true;
             let wsUrl = baseWsUrl();
-            wsUrl = baseWsUrl() + `?module=sys` + '&token=' + `${getToken()}`;
+            wsUrl = baseWsUrl() + `?module=tenant&tenant_id=1&visitor_id=abc123` + '&token=' + `${getToken()}`;
             ws.value = new WebSocket(wsUrl);
             setupEventListeners(ws.value);
         }
@@ -25,9 +25,10 @@ export const useWebsocketStore = defineStore("websocket", () => {
     const setupEventListeners = (websocket: WebSocket) => {
         heartbeatIntervalId = setInterval(() => {
             if (websocket?.readyState === WebSocket.OPEN) {
-                sendMessage({
-                    class: 'ping'
-                });
+                // sendMessage({
+                //     type: 'chat',
+                //     content:"test"
+                // });
             } else if (websocket?.readyState === WebSocket.CLOSED || websocket?.readyState === WebSocket.CLOSING) {
                 clearInterval(heartbeatIntervalId!);
             }
@@ -47,8 +48,6 @@ export const useWebsocketStore = defineStore("websocket", () => {
         const handleMessage = (event: MessageEvent) => {
             const res = JSON.parse(event.data);
             if (res.code == 701) {
-                useAdminStoreHook().resetToken()
-                useAdminStoreHook().setInfo({})
                 router.replace({
                     path: "/login",
                     query: {
