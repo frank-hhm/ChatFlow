@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="bb7a85a9-3a75-4658-9672-e0ea9c38c7bf" name="dev">
+        <fileTransfer rootFolder="/www/wwwroot/dev/chat-flow" accessType="SFTP" host="8.134.68.231" port="9999" sshConfigId="b21a0d46-e710-4dc9-9a2d-58329d1d152f" sshConfig="root@8.134.68.231:9999 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
