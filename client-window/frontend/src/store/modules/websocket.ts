@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import store from "@/store"
+import store, { useAccountStoreHook } from "@/store"
 import { defineStore } from "pinia"
 import { baseWsUrl, getToken, dispatchEvents } from "@/utils";
 import router from "@/router";
@@ -11,10 +11,12 @@ export const useWebsocketStore = defineStore("websocket", () => {
     const ws = ref<WebSocket | null>(null);
 
     const initWebSocket = async () => {
-        if (!ws.value ) {
+        const accountStore = useAccountStoreHook();
+        const accountInfo = accountStore.accountInfo
+        if (!ws.value) {
             isWebSocketOpen = true;
             let wsUrl = baseWsUrl();
-            wsUrl = baseWsUrl() + `?module=tenant&tenant_id=1&visitor_id=abc123` + '&token=' + `${getToken()}`;
+            wsUrl = baseWsUrl() + `?module=client&tenant_id=${accountInfo.tenant_id}&account_id=${accountInfo.id}` + '&token=' + `${getToken()}`;
             ws.value = new WebSocket(wsUrl);
             setupEventListeners(ws.value);
         }
@@ -54,7 +56,7 @@ export const useWebsocketStore = defineStore("websocket", () => {
                         redirect: router.currentRoute.value.fullPath
                     }
                 });
-            }else if (res.code == 1){
+            } else if (res.code == 1) {
                 dispatchEvents('websocketMessage', res);
             }
         }

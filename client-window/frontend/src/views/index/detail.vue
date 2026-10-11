@@ -13,7 +13,7 @@
             <div class="detail-main">
                 <div class="avatar-main">
                     <a-avatar @click="onUpdateAvatar" shape="square" :size="80">
-                        <img :src="adminInfo?.avatar" />
+                        <img :src="accountInfo?.avatar" />
                         <template #trigger-icon>
                             <IconEdit />
                         </template>
@@ -27,24 +27,24 @@
                 <div class="detail-right">
                     <div class="detail-item">
                         <div class="title">账号：</div>
-                        <div class="desc">{{ adminInfo.account }}</div>
+                        <div class="desc">{{ accountInfo.account }}</div>
                     </div>
                     <div class="detail-item">
                         <div class="title">邮箱：</div>
-                        <div class="desc">{{ adminInfo.email }}</div>
+                        <div class="desc">{{ accountInfo.email }}</div>
                         <div class="ml20">
                             <a-button size="small" shape="circle" @click="onUpdateEmail"><icon-edit /></a-button>
                         </div>
                     </div>
                     <div class="detail-item">
                         <div class="title">姓名：</div>
-                        <div class="desc">{{ adminInfo.real_name }}</div>
+                        <div class="desc">{{ accountInfo.real_name }}</div>
                     </div>
                     <div class="detail-item">
                         <div class="title">登录IP：</div>
                         <div class="content">
-                            <div class="fz12">{{ adminInfo.last_ip?.value }}</div>
-                            <div class="text-grey" v-if="adminInfo.last_ip?.text">{{ adminInfo.last_ip?.text
+                            <div class="fz12">{{ accountInfo.last_ip?.value }}</div>
+                            <div class="text-grey" v-if="accountInfo.last_ip?.text">{{ accountInfo.last_ip?.text
                             }}</div>
                         </div>
                     </div>
@@ -60,12 +60,14 @@ import { storeToRefs } from "pinia";
 import { logoutApi } from '@/api/login';
 import { Message } from '@arco-design/web-vue';
 import { Result, ResultError } from "@/types";
-
+import { useAccountStore } from "@/store";
 
 const {
     proxy,
     proxy: { $utils },
 } = getCurrentInstance() as any;
+
+const { accountInfo } = storeToRefs(useAccountStore());
 
 const cropperRef = ref<HTMLElement>();
 
@@ -114,12 +116,10 @@ const toLogin = () => {
     });
 };
 
-const adminInfo = ref<any>(null);
-
 const loginLogsComponentRef = ref<HTMLElement>();
 
 const onLoginLogs = () => {
-    proxy?.$refs["loginLogsComponentRef"]?.open(adminInfo?.value.id);
+    proxy?.$refs["loginLogsComponentRef"]?.open(accountInfo?.value.id);
 }
 
 const emailComponentRef = ref<HTMLElement>();

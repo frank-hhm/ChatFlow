@@ -1,4 +1,4 @@
-let PREFIX = "sys"
+let PREFIX = "client"
 
 if (process.env.NODE_ENV === 'development') {
     PREFIX = 'dev-' + PREFIX

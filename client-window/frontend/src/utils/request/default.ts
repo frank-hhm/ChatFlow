@@ -10,7 +10,7 @@ export const request = (params: any, options: any = {
     return new Promise<Result>((resolve, reject) => {
         axios.defaults.headers.post['Content-Type'] = 'application/json'
         axios.defaults.responseType = 'json'
-        const apiPath = options.apiPath || "sys/"
+        const apiPath = options.apiPath || "client/"
         const service = axios.create({
             baseURL: baseApiUrl() + apiPath, // api 的 base_url
             timeout: 80000

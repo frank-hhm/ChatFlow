@@ -75,6 +75,7 @@ import forgetPassword from "./forget-password.vue";
 
 import {
     useAppStore,
+    useAccountStore,
     usePermissionStore,
 } from "@/store";
 import { getCacheLogin, setCacheLogin, setToken } from "@/utils";
@@ -121,9 +122,8 @@ const toLogin = () => {
             loginLoad.value = true;
             loginApi(loginForm)
                 .then((res: Result) => {
+                    useAccountStore().setInfo(res.data.info);
                     setToken(res.data.token, res.data.expires_time);
-                    permission.setHomeAction(res.data.menus.homePath);
-                    permission.setRoleAction(res.data.menus.action);
                     if (isCacheLogin.value) {
                         setCacheLogin({
                             account: window.btoa(loginForm.account),
@@ -137,7 +137,7 @@ const toLogin = () => {
                         content: "正在进入...",
                         duration: 1500,
                         onClose: () => {
-                            let path: any = res.data.menus.homePath || "/";
+                            let path: any = "/";
                             if (router.currentRoute.value.query.redirect) {
                                 path = permission.getRoleActionPath(
                                     String(router.currentRoute.value.query.redirect)
