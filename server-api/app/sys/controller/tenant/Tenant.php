@@ -6,16 +6,17 @@
  */
 declare(strict_types=1);
 
-namespace app\sys\controller;
+namespace app\sys\controller\tenant;
 
-use app\common\exception\CommonException;
 use app\common\helper\MailerHelper;
-use app\sys\controller\Base;
-use think\facade\{App, Config, Filesystem};
-use app\common\services\system\AdminService;
 use app\common\services\common\CacheService;
+use app\common\services\tenant\TenantAccountService;
+use app\common\services\tenant\TenantService;
+use app\sys\controller\Base;
 use app\sys\validate\AdminValidate;
-use app\sys\validate\AdminPassValidate;
+use think\facade\{App, Config, Filesystem};
+use app\sys\validate\tenant\TenantValidate;
+
 /**
  * 租户
  * Class Tenant
@@ -24,50 +25,43 @@ use app\sys\validate\AdminPassValidate;
 class Tenant extends Base
 {
     /**
-     * Admin constructor.
+     * Tenant constructor.
      */
-    public function __construct(App $app , AdminService $service)
+    public function __construct(App $app , TenantService $service)
     {
         parent::__construct($app);
         $this->service = $service;
     }
 
     /**
-     * 账号列表
+     * 租户列表
      * @method(GET)
      */
     public function list()
     {
-        $data = $this->request->getMore([
-            ['account_like', ''],
-            ['time', []],
-        ]);
-        $this->success($this->service->getAdminList($data));
+        $this->success($this->service->getList());
     }
 
     /**
-     * 添加账号
+     * 添加租户
      * @method(POST)
      */
     public function create()
     {
         $data = $this->request->postMore([
-            ['account', ''],
-            ['real_name', ''],
+            ['nick_name', ''],
+            ['company_name', ''],
             ['email',''],
-            ['avatar',''],
-            ['roles', []],
             ['pwd',''],
             ['conf_pwd',''],
         ]);
-        validate(AdminValidate::class)->check($data);
-
-        $this->service->create($data);
-        $this->success('添加账号成功!');
+        validate(TenantValidate::class)->check($data);
+        $this->service->createTenant($data);
+        $this->success('添加租户成功!');
     }
 
     /**
-     * 修改账号
+     * 修改租户
      * @method(PUT)
      */
     public function update()
@@ -87,9 +81,6 @@ class Tenant extends Base
         $detail = $this->service->getDetail($data['id']);
         if(empty($detail)){
             $this->error('该账号不存在！');
-        }
-        if(in_array($detail['level'],$this->seniorLevel) && $this->adminInfo['level'] > $detail['level']){
-            $this->error('该账号不能编辑！');
         }
 
         if( $this->service->updateSave($data['id'],$data)){
