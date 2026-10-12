@@ -14,3 +14,11 @@ export const getMessageListApi = (data:any) => {
         params: data
     })
 }
+
+export const readMessageApi = (data: any) => {
+    return request({
+        url: `tenant.account/readMessage`,
+        method: 'POST',
+        data
+    })
+}

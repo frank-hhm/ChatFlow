@@ -13,7 +13,9 @@ export const useWebsocketStore = defineStore("websocket", () => {
     const initWebSocket = async () => {
         const accountStore = useAccountStoreHook();
         const accountInfo = accountStore.accountInfo
-        if (!ws.value && accountInfo.id) {
+        const token = getToken()
+        console.log("======", token)
+        if (!ws.value && token) {
             isWebSocketOpen = true;
             let wsUrl = baseWsUrl();
             wsUrl = baseWsUrl() + `?module=client&tenant_id=${accountInfo.tenant_id}&account_id=${accountInfo.id}` + '&token=' + `${getToken()}`;
@@ -49,6 +51,7 @@ export const useWebsocketStore = defineStore("websocket", () => {
         }
         const handleMessage = (event: MessageEvent) => {
             const res = JSON.parse(event.data);
+            console.log(res)
             if (res.code == 701) {
                 router.replace({
                     path: "/login",
@@ -56,8 +59,8 @@ export const useWebsocketStore = defineStore("websocket", () => {
                         redirect: router.currentRoute.value.fullPath
                     }
                 });
-            } else if (res.code == 1) {
-                dispatchEvents('websocketMessage', res);
+            } else {
+                dispatchEvents('webSocketMessage', res);
             }
         }
         const handleOpen = (event: Event) => {
@@ -87,9 +90,13 @@ export const useWebsocketStore = defineStore("websocket", () => {
         }
     }
     const closeWebSocket = () => {
+        if (ws.value?.readyState === WebSocket.OPEN) {
+            ws.value.send(JSON.stringify({
+                type: 'close'
+            }));
+        }
         // 先关掉自动重连
         isWebSocketOpen = false
-
         if (heartbeatIntervalId) {
             clearInterval(heartbeatIntervalId)
             heartbeatIntervalId = null

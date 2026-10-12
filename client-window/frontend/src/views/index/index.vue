@@ -4,7 +4,9 @@
             <div class="conversation-item" :class="{ active: itemConversation.id === item.id }"
                 v-for="(item, index) in conversationList" :key="item.id" @click="onSelectConversation(item)">
                 <div class="item-left">
-                    <a-avatar :size="40" shape="square">游客</a-avatar>
+                    <a-badge :count="getMessageCount(item) || 0">
+                        <a-avatar :size="40" shape="square">游客</a-avatar>
+                    </a-badge>
                 </div>
                 <div class="item-right">
                     <div class="item-right-top">
@@ -68,10 +70,17 @@
 </template>
 
 <script setup lang="ts">
-import { getConversationListApi, getMessageListApi } from "@/api/im";
+import { getConversationListApi, getMessageListApi, readMessageApi } from "@/api/im";
 import { useAppStore, useEnumStore, useWebsocketStore } from "@/store";
 import { Result, ResultError } from "@/types";
-import { nextTick, onMounted, ref, watch } from "vue";
+import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+
+
+const {
+    proxy,
+    proxy: { $utils },
+} = getCurrentInstance() as any;
+
 
 /* ================= 会话列表 ================= */
 const conversationList = ref<any[]>([]);
@@ -95,7 +104,9 @@ const onRefresh = () => {
 const itemConversation = ref<any>({});
 
 const onSelectConversation = (item: any) => {
+    item.new_message_count = 0;
     itemConversation.value = item;
+    readMessage(item.id, item);
     messagePage.value = 1;
     messageList.value = [];
     noMoreHistory.value = false;
@@ -103,6 +114,16 @@ const onSelectConversation = (item: any) => {
         loadHistoryMessages();
     });
 };
+
+const readMessage = (conversationId = 0, item: any = {}) => {
+    readMessageApi({
+        id: conversationId
+    }).then((res: Result) => {
+        item.is_read = 1;
+    }).catch((err: ResultError) => {
+        console.error(err);
+    });
+}
 
 /* ================= 消息列表 ================= */
 const messageList = ref<any[]>([]);
@@ -252,7 +273,100 @@ watch(
 
 onMounted(() => {
     initConversationList(true);
+    webSocketOpenCallback();
 });
+
+/* ================= WebSocket 消息处理 ================= */
+const webSocketMessageCallback = ({ detail }: any) => {
+    console.log('ws message:', detail);
+
+    if (detail?.type === 'new_message') {
+        const msg = detail.data;
+        const convId = msg.conversation_id;
+
+        // 1. 更新会话列表中的最后一条消息和未读数
+        const convIndex = conversationList.value.findIndex(
+            (c: any) => c.id === convId
+        );
+
+        if (convIndex !== -1) {
+            // 会话已存在，更新最后消息和未读数
+            conversationList.value[convIndex].last_message = msg.content;
+            conversationList.value[convIndex].last_message_time = msg.created_at || msg.friendly_time;
+            conversationList.value[convIndex].new_message_count =
+                (conversationList.value[convIndex].new_message_count || 0) + 1;
+            // 把该会话移到列表顶部
+            const conv = conversationList.value.splice(convIndex, 1)[0];
+            conversationList.value.unshift(conv);
+        } else {
+            // 2. 新会话，从消息中构造一个会话项插入顶部
+            const newConv = {
+                id: convId,
+                visitor_id: msg.visitor_id,
+                visitor_name: msg.visitor_name || msg.nickname || '访客',
+                avatar: msg.avatar || 'https://i.pravatar.cc/150?img=10',
+                last_message: msg.content,
+                last_message_time: msg.created_at || msg.friendly_time,
+                new_message_count: 1,
+                status: 'open',
+            };
+            conversationList.value.unshift(newConv);
+        }
+
+        // 3. 如果当前正在和该会话聊天，直接追加消息到列表，并清除未读
+        if (itemConversation.value.id === convId) {
+            const enriched = {
+                ...msg,
+                isSelf: msg.sender_type === 'client',
+                showTime: true,
+                friendly_time: msg.friendly_time,
+                avatar:
+                    msg.sender_type === 'client'
+                        ? 'https://i.pravatar.cc/150?img=10'
+                        : msg.avatar || 'https://i.pravatar.cc/150?img=1',
+            };
+            messageList.value.push(enriched);
+            scrollToBottom();
+
+            // 清除该会话未读数
+            const target = conversationList.value.find(
+                (c: any) => c.id === convId
+            );
+            if (target) {
+                target.new_message_count = 0;
+            }
+        }
+    }
+};
+const messageTimer = ref<any>(null)
+
+const webSocketOpenCallback = () => {
+    if (useWebsocketStore().ws) {
+        $utils.eventsListener('webSocketMessage', webSocketMessageCallback);
+    } else {
+        setTimeout(() => {
+            if (messageTimer.value) {
+                clearInterval(messageTimer.value)
+                messageTimer.value = null
+            }
+            webSocketOpenCallback()
+        }, 5000)
+    }
+}
+
+const getMessageCount = ((item: any) => {
+    if (item?.is_read == 0) {
+        return item?.message_count;
+    }
+    return item?.new_message_count || 0;
+});
+
+onBeforeUnmount(() => {
+    if (messageTimer.value) {
+        clearInterval(messageTimer.value)
+        messageTimer.value = null
+    }
+})
 </script>
 <style lang="less">
 .message-emoji-popover {
@@ -344,7 +458,6 @@ onMounted(() => {
             width: 40px;
             background: rgba(0, 0, 0, 0.3);
             border-radius: var(--base-radius-small);
-            overflow: hidden;
 
             .item-avatr {
                 height: 40px;
