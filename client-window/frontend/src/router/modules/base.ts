@@ -1,4 +1,4 @@
-import BasicLayout from "@/components/layouts/index.vue";
+import BasicLayout from "@/views/layouts/index.vue";
 
 export default [{
     path: '/',

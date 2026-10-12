@@ -1,6 +1,6 @@
 <template>
     <template v-for="(item, index) in menus" :key="index">
-        <div class="layout-side-item" :class="curNav == item.id ? 'active' : ''" @click="onPath(item)">
+        <div class="layout-side-item" :class="curPath == item.id ? 'active' : ''" @click="onPath(item)">
             <div class="icon" :class="item.icon"></div>
             <div class="name">{{ item.menu_name }}</div>
         </div>
@@ -20,10 +20,8 @@ import {
     nextTick,
 } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useAppStore } from "@/store";
 import { storeToRefs } from "pinia";
 
-const { menus } = storeToRefs(useAppStore());
 const {
     proxy: { $utils },
 } = getCurrentInstance() as any;
@@ -34,65 +32,31 @@ const route = useRoute();
 
 const emit = defineEmits(["change"]);
 
-const curNav = ref<number | string>(-1);
+const menus = ref<any>([{
+    menu_name: "聊天",
+    icon: "icon-pinglun-1",
+    menu_path: "/index"
+}])
+
+const curPath = ref<number | string | unknown>(null);
 const onPath = (menu: any) => {
-    curNav.value = menu.id;
     emit("change", []);
     // 直接跳转指定页面
+    curPath.value = menu.menu_path
     router.push({
         path: menu.menu_path,
         query: menu.url_params || {},
     });
 };
 const initRoute = () => {
-    var _router = {
-        path: router.currentRoute.value.path,
-        activeMenu: router.currentRoute.value.meta?.activeMenu || "",
-    };
     if (!menus.value || menus.value == undefined) {
         router.replace({
             path: "/",
         });
         return false;
     }
-    refresh(menus.value, _router, -1);
 };
 
-//
-const refresh = (data: any, _router: any, parent: number | string) => {
-    try {
-        data.forEach((item: any, index: any) => {
-            if (item.children && item.children.length > 0) {
-                refresh(item.children, _router, parent == -1 ? item.id : parent);
-            } else if (
-                item.menu_path == _router.path ||
-                (_router.activeMenu != "" && item.menu_path == _router.activeMenu) ||
-                $utils.getMenuString(item.menu_path, true) ==
-                $utils.getMenuString(_router.path, true) ||
-                $utils.getMenuActionParent(item, _router.path)
-            ) {
-                if (parent === -1) {
-                    setCurNavPath(item.id, false);
-                } else {
-                    setCurNavPath(parent, false);
-                }
-                throw new Error("End refresh");
-            }
-        });
-    } catch (e: any) {
-        // if(e.message == 'End Loop') throw e
-    }
-};
-
-const setCurNavPath = (id: number | string, addon: string | unknown) => {
-    curNav.value = id;
-    menus.value.forEach((item: any) => {
-        if (id === item.id) {
-            var children = item.children || [];
-            emit("change", children);
-        }
-    });
-};
 
 watch(
     () => router.currentRoute.value,

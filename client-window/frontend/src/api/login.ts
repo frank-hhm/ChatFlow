@@ -11,7 +11,7 @@ export const loginApi = (data: any) => {
 
 export const logoutApi = () => {
     return request({
-        url: 'system.admin/logout',
+        url: 'tenant.account/logout',
         method: 'GET'
     })
 }

@@ -77,6 +77,7 @@ import {
     useAppStore,
     useAccountStore,
     usePermissionStore,
+    useWebsocketStore,
 } from "@/store";
 import { getCacheLogin, setCacheLogin, setToken } from "@/utils";
 import { storeToRefs } from "pinia";
@@ -132,12 +133,13 @@ const toLogin = () => {
                     } else {
                         setCacheLogin(null);
                     }
+                    useWebsocketStore().initWebSocket();
                     Notification.success({
                         title: "登录成功",
                         content: "正在进入...",
                         duration: 1500,
                         onClose: () => {
-                            let path: any = "/";
+                            let path: any = "/index";
                             if (router.currentRoute.value.query.redirect) {
                                 path = permission.getRoleActionPath(
                                     String(router.currentRoute.value.query.redirect)

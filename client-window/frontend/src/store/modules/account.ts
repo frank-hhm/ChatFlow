@@ -14,7 +14,7 @@ export const useAccountStore = defineStore("account", () => {
         accountInfo.value = value
     }
 
-    const initInfo = (callback: Function) => {
+    const initInfo = (callback: Function | null = null) => {
         getDefaultDetailApi().then(res => {
             accountInfo.value = res.data
             callback && callback()

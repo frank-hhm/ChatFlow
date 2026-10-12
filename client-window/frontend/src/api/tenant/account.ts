@@ -6,3 +6,11 @@ export const getDefaultDetailApi = () => {
         method: 'GET'
     })
 }
+
+export const uploadAvatarApi = (data: any) => {
+    return requestProgress({
+        url: `tenant.account/updateAvatar`,
+        method: 'POST',
+        data
+    })
+}

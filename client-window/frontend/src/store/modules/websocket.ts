@@ -13,7 +13,7 @@ export const useWebsocketStore = defineStore("websocket", () => {
     const initWebSocket = async () => {
         const accountStore = useAccountStoreHook();
         const accountInfo = accountStore.accountInfo
-        if (!ws.value) {
+        if (!ws.value && accountInfo.id) {
             isWebSocketOpen = true;
             let wsUrl = baseWsUrl();
             wsUrl = baseWsUrl() + `?module=client&tenant_id=${accountInfo.tenant_id}&account_id=${accountInfo.id}` + '&token=' + `${getToken()}`;
@@ -86,7 +86,33 @@ export const useWebsocketStore = defineStore("websocket", () => {
             ws.value.send(JSON.stringify(data));
         }
     }
-    return { ws, initWebSocket, sendMessage }
+    const closeWebSocket = () => {
+        // 先关掉自动重连
+        isWebSocketOpen = false
+
+        if (heartbeatIntervalId) {
+            clearInterval(heartbeatIntervalId)
+            heartbeatIntervalId = null
+        }
+
+        if (ws.value) {
+            // 解绑事件，避免 close 后再触发重连
+            ws.value.onopen = null
+            ws.value.onmessage = null
+            ws.value.onerror = null
+            ws.value.onclose = null
+
+            if (
+                ws.value.readyState === WebSocket.OPEN ||
+                ws.value.readyState === WebSocket.CONNECTING
+            ) {
+                ws.value.close()
+            }
+
+            ws.value = null
+        }
+    }
+    return { ws, initWebSocket, sendMessage, closeWebSocket }
 })
 /** 在 setup 外使用 */
 export function useWebsocketStoreHook() {

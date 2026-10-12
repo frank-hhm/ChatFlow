@@ -1,6 +1,7 @@
 export interface IAccount {
     id?: string | number
     tenant_id?: string | number
+    avatar?: string
     email?: string
     phone?: string
     nick_name?: string
