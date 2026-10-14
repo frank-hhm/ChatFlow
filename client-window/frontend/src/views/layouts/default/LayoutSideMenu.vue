@@ -36,6 +36,10 @@ const menus = ref<any>([{
     menu_name: "聊天",
     icon: "icon-pinglun-1",
     menu_path: "/index"
+}, {
+    menu_name: "通讯录",
+    icon: "icon-pinglun-1",
+    menu_path: "/index"
 }])
 
 const curPath = ref<number | string | unknown>(null);

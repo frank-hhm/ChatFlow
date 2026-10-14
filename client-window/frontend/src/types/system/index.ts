@@ -1,4 +1,3 @@
-export * from './admin'
 export * from './menus'
 
 export interface SystemInfoType {

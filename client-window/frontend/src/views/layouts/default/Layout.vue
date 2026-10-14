@@ -141,7 +141,6 @@ onMounted(() => {
     width: calc(100% - 81px);
     height: 100%;
     background: var(--color-bg-body);
-    overflow-y: scroll;
 }
 
 

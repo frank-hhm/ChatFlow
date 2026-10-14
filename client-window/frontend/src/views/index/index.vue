@@ -20,6 +20,8 @@
         <div class="conversation-refresh-btn icon icon-shuaxin" @click="onRefresh"></div>
 
         <div class="page-container-right">
+            <!-- <input ref="imageInputRef" type="file" accept="image/*" multiple style="display: none;"
+                @change="onImageSelect" /> -->
             <div ref="messageContainerRef" class="page-container-message" @scroll="onMessageScroll">
                 <div v-if="historyLoading" class="message-load-more">
                     加载中...
@@ -33,54 +35,93 @@
                         {{ msg.friendly_time }}
                     </div>
 
-                    <div class="message-row" :class="msg.isSelf ? 'message-row-self' : 'message-row-other'">
-                        <img v-if="!msg.isSelf" class="message-avatar" :src="msg.avatar" />
-                        <div class="message-bubble">{{ msg.content }}</div>
-                        <img v-if="msg.isSelf" class="message-avatar" :src="msg.avatar" />
+                    <div class="message-row"
+                        :class="msg.sender_type === 'client' ? 'message-row-self' : 'message-row-other'">
+
+                        <a-avatar v-if="msg.sender_type !== 'client'" class="message-avatar" :size="32"
+                            shape="square">游客</a-avatar>
+
+                        <!-- 图片消息：上传中/失败/成功 三种状态 -->
+                        <div class="message-content-image" v-if="msg.msg_type == 'image'">
+
+                            <!-- <div class="upload-cancel icon icon-cuo" v-if="msg.uploadStatus === 'uploading'"
+                                @click="cancelUpload(msg.id)"></div>
+                            <div v-else-if="msg.uploadStatus === 'failed'" class="upload-retry icon icon-shuaxin"
+                                @click="retryUpload(msg)"></div> -->
+
+                            <div class="message-content-image-box">
+                                <!-- 上传中 -->
+                                <div v-if="msg.uploadStatus === 'uploading'" class="image-upload-wrapper">
+                                    <!-- <div class="upload-progress-bg">
+                                        <div class="upload-progress-bar" :style="{ width: msg.progress + '%' }"></div>
+                                    </div> -->
+                                    <!-- <span class="upload-text">{{ msg.progress }}%</span> -->
+                                    <a-progress type="circle" status='warning'
+                                        :percent="parseFloat(msg.progress) / 100" />
+                                </div>
+                                <!-- 上传失败 -->
+                                <div v-else-if="msg.uploadStatus === 'failed'"
+                                    class="image-upload-wrapper image-upload-failed">
+                                    <div>
+                                        <div class="failed-icon icon icon-tishi"></div>
+                                        <div class="failed-text">上传失败</div>
+                                    </div>
+                                </div>
+                                <!-- 上传成功 -->
+                                <img v-else :src="msg.content" class="message-image" @error="handleImageError" />
+                            </div>
+                        </div>
+
+                        <imMessageTextComponent v-else :content="msg.content" :sender="msg.sender_type">
+                        </imMessageTextComponent>
+
+                        <a-avatar v-if="msg.sender_type === 'client'" class="message-avatar" :size="32" shape="square"
+                            :imageUrl="msg.avatar"></a-avatar>
                     </div>
                 </div>
             </div>
 
             <div class="page-container-bottom" v-if="itemConversation">
-                <a-popover trigger="click" position="tl" content-class="message-emoji-popover">
-                    <div class="bottom-toolbar">
-                        <div class="emoji-btn icon icon-biaoqing_3" :class="showEmojiPicker ? 'active' : ''"
-                            @click="showEmojiPicker = !showEmojiPicker"></div>
+                <div class="bottom-toolbar">
+                    <div class="toolbar-item">
+                        <imToolbarEmojiPickerComponent ref="imToolbarEmojiPickerComponentRef"
+                            @change="onChangeToolbarEmoji" />
                     </div>
-                    <template #content>
-                        <div class="emoji-picker">
-                            <div class="emoji-item" v-for="emoji in emojiList" :key="emoji" @click="insertEmoji(emoji)">
-                                {{ emoji }}
-                            </div>
-                        </div>
-                    </template>
-                </a-popover>
-                <div class="bottom-input-wrap">
+                    <div class="toolbar-item">
+                        <imToolbarImageComponent ref="imToolbarImageComponentRef" @change="onChangeToolbarImage" />
+                    </div>
 
-                    <a-textarea class="bottom-input-wrap-textarea" ref="textareaRef" v-model="newMessageText"
-                        placeholder="输入消息，Enter 发送" :auto-size="{ minRows: 1, maxRows: 4 }" :max-length="200"
-                        allow-clear show-word-limit @keydown.enter.exact="onSendMessage" @keydown.enter.exact.prevent />
+                    <!-- <div class="toolbar-item" @click="triggerImageSelect">
+                        <div class="icon icon-img"></div>
+                    </div> -->
                 </div>
-
-                <div class="send-message-btn icon icon-fabu" :class="{ disabled: !newMessageText.trim() }"
-                    @click="onSendMessage"></div>
+                <div class="bottom-input-wrap" :class="{ 'drag-over': isDragOver }" @dragover.prevent="onDragOver"
+                    @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
+                    <textarea class="bottom-input-wrap-textarea" ref="textareaRef" v-model="newMessageText"
+                        placeholder="输入消息，Enter 发送" @keydown.enter.exact="onSendMessage" @keydown.enter.exact.prevent />
+                    <div class="send-message-btn" :class="{ disabled: !newMessageText.trim() }" @click="onSendMessage">
+                        发送</div>
+                </div>
             </div>
         </div>
     </div>
 </template>
-
 <script setup lang="ts">
-import { getConversationListApi, getMessageListApi, readMessageApi } from "@/api/im";
-import { useAppStore, useEnumStore, useWebsocketStore } from "@/store";
+import { getConversationListApi, getMessageListApi, readMessageApi, uploadMediaApi } from "@/api/im";
+import { useAccountStore, useAppStore, useEnumStore, useWebsocketStore } from "@/store";
 import { Result, ResultError } from "@/types";
+import { storeToRefs } from "pinia";
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-
+import imToolbarEmojiPickerComponent from "@/views/components/im/toolbar/emoji.vue"
+import imToolbarImageComponent from "@/views/components/im/toolbar/image.vue"
+import imMessageTextComponent from "@/views/components/im/message/text.vue"
 
 const {
     proxy,
     proxy: { $utils },
 } = getCurrentInstance() as any;
 
+const { accountInfo } = storeToRefs(useAccountStore());
 
 /* ================= 会话列表 ================= */
 const conversationList = ref<any[]>([]);
@@ -156,16 +197,10 @@ const loadHistoryMessages = async () => {
             noMoreHistory.value = true;
         } else {
             messagePage.value += 1;
-
             const enriched = list.map((item: any) => ({
                 ...item,
-                isSelf: item.sender_type === "client",
                 showTime: true,
-                friendly_time: item.friendly_time,
-                avatar:
-                    item.sender_type === "client"
-                        ? "https://i.pravatar.cc/150?img=10"
-                        : item.avatar || "https://i.pravatar.cc/150?img=1",
+                friendly_time: item.friendly_time
             }));
 
             messageList.value = [...enriched, ...messageList.value];
@@ -207,8 +242,8 @@ const scrollToBottom = () => {
 };
 
 /* ================= 发送消息 ================= */
-const newMessageText = ref("");
-const textareaRef = ref();
+const newMessageText = ref<string>("");
+const textareaRef = ref<HTMLElement>();
 
 const onSendMessage = () => {
     const content = newMessageText.value.trim();
@@ -218,47 +253,31 @@ const onSendMessage = () => {
         type: "client_reply",
         content,
         conversation_id: itemConversation.value.id,
+        msg_type: "text"
     };
 
     useWebsocketStore().sendMessage(messageObj);
 
-    // 本地先追加一条，体验更即时
     messageList.value.push({
         id: Date.now(),
         content,
-        isSelf: true,
-        showTime: false,
-        friendly_time: "",
-        avatar: "https://i.pravatar.cc/150?img=10",
+        showTime: true,
+        friendly_time: "刚刚",
+        avatar: accountInfo.value.avatar,
+        sender_type: "client",
+        msg_type: "text"
     });
 
     newMessageText.value = "";
-    showEmojiPicker.value = false;
+    proxy.$refs["imToolbarEmojiPickerComponentRef"]?.close();
     autoScrollBottom.value = true;
     scrollToBottom();
     initConversationList();
-};
-
-/* ================= 表情 ================= */
-const showEmojiPicker = ref(false);
-
-const emojiList = [
-    "😀", "😁", "😂", "🤣", "😃", "😄", "😅", "😆",
-    "😉", "😊", "😋", "😎", "😍", "😘", "🥰", "😗",
-    "🤔", "🤨", "😐", "😑", "😶", "🙄", "😏", "😣",
-    "😥", "😮", "🤐", "😯", "😪", "😫", "😴", "😌",
-    "😛", "😜", "😝", "🤤", "😒", "😓", "😔", "😕",
-    "🙃", "🤑", "😲", "☹️", "🙁", "😖", "😞", "😟",
-    "😤", "😢", "😭", "😦", "😧", "😨", "😩", "🤯",
-    "😬", "😰", "😱", "🥵", "🥶", "😳", "🤪", "😵",
-    "🥴", "😠", "😡", "🤬", "😷", "🤒", "🤕", "🤢",
-    "👍", "👎", "👏", "🙏", "💪", "❤️", "💔", "🔥",
-    "⭐", "🎉", "🎊", "✅", "❌", "❓", "💬", "👀",
-];
-
-const insertEmoji = (emoji: string) => {
-    newMessageText.value += emoji;
-    textareaRef.value?.focus?.();
+    nextTick(() => {
+        if (textareaRef.value) {
+            textareaRef.value.style.height = '60px';
+        }
+    });
 };
 
 /* ================= 监听新消息自动滚动 ================= */
@@ -270,6 +289,19 @@ watch(
         }
     }
 );
+watch(
+    () => newMessageText.value,
+    () => {
+        nextTick(() => {
+            const textarea = textareaRef.value;
+            if (textarea) {
+                textarea.style.height = "auto";
+                textarea.style.height = "calc(" + textarea.scrollHeight + "px - 20px)";
+                textarea.scrollTop = textarea.scrollHeight;
+            }
+        });
+    }
+)
 
 onMounted(() => {
     initConversationList(true);
@@ -277,60 +309,55 @@ onMounted(() => {
 });
 
 /* ================= WebSocket 消息处理 ================= */
-const webSocketMessageCallback = ({ detail }: any) => {
-    console.log('ws message:', detail);
+const webSocketMessageCallback = ({ detail }) => {
+    console.log("ws message:", detail);
 
-    if (detail?.type === 'new_message') {
+    if (detail?.type === "new_message") {
         const msg = detail.data;
         const convId = msg.conversation_id;
 
-        // 1. 更新会话列表中的最后一条消息和未读数
         const convIndex = conversationList.value.findIndex(
-            (c: any) => c.id === convId
+            (c) => c.id === convId
         );
 
         if (convIndex !== -1) {
-            // 会话已存在，更新最后消息和未读数
             conversationList.value[convIndex].last_message = msg.content;
-            conversationList.value[convIndex].last_message_time = msg.created_at || msg.friendly_time;
+            conversationList.value[convIndex].last_message_time = msg.create_time || msg.friendly_time;
+            conversationList.value[convIndex].sender_type = "visitor";
             conversationList.value[convIndex].new_message_count =
                 (conversationList.value[convIndex].new_message_count || 0) + 1;
-            // 把该会话移到列表顶部
             const conv = conversationList.value.splice(convIndex, 1)[0];
             conversationList.value.unshift(conv);
         } else {
-            // 2. 新会话，从消息中构造一个会话项插入顶部
             const newConv = {
                 id: convId,
                 visitor_id: msg.visitor_id,
-                visitor_name: msg.visitor_name || msg.nickname || '访客',
-                avatar: msg.avatar || 'https://i.pravatar.cc/150?img=10',
+                visitor_name: msg.visitor_name || msg.nick_name || "访客",
+                avatar: msg.avatar || "https://i.pravatar.cc/150?img=10",
                 last_message: msg.content,
                 last_message_time: msg.created_at || msg.friendly_time,
                 new_message_count: 1,
-                status: 'open',
+                status: "open",
             };
             conversationList.value.unshift(newConv);
         }
 
-        // 3. 如果当前正在和该会话聊天，直接追加消息到列表，并清除未读
         if (itemConversation.value.id === convId) {
             const enriched = {
                 ...msg,
-                isSelf: msg.sender_type === 'client',
                 showTime: true,
                 friendly_time: msg.friendly_time,
                 avatar:
-                    msg.sender_type === 'client'
-                        ? 'https://i.pravatar.cc/150?img=10'
-                        : msg.avatar || 'https://i.pravatar.cc/150?img=1',
+                    msg.sender_type === "client"
+                        ? "https://i.pravatar.cc/150?img=10"
+                        : msg.avatar || "https://i.pravatar.cc/150?img=1",
+                msg_type: msg.msg_type || "text",
             };
             messageList.value.push(enriched);
             scrollToBottom();
 
-            // 清除该会话未读数
             const target = conversationList.value.find(
-                (c: any) => c.id === convId
+                (c) => c.id === convId
             );
             if (target) {
                 target.new_message_count = 0;
@@ -338,11 +365,11 @@ const webSocketMessageCallback = ({ detail }: any) => {
         }
     }
 };
-const messageTimer = ref<any>(null)
+const messageTimer = ref(null)
 
 const webSocketOpenCallback = () => {
     if (useWebsocketStore().ws) {
-        $utils.eventsListener('webSocketMessage', webSocketMessageCallback);
+        $utils.eventsListener("webSocketMessage", webSocketMessageCallback);
     } else {
         setTimeout(() => {
             if (messageTimer.value) {
@@ -354,7 +381,43 @@ const webSocketOpenCallback = () => {
     }
 }
 
-const getMessageCount = ((item: any) => {
+/* ================= 表情 ================= */
+const onChangeToolbarEmoji = (emoji: String) => {
+    newMessageText.value += emoji;
+    textareaRef.value?.focus?.();
+};
+
+/* ================= 图片 ================= */
+const onChangeToolbarImage = (res: {
+    event?: String,
+    msgId?: String | Number,
+    controller?: any,
+    result?: Object | any
+}) => {
+    console.log(res)
+}
+
+/* ================= Dragover prevent ================= */
+
+const isDragOver = ref<boolean>(false)
+
+const onDragOver = () => {
+    isDragOver.value = true;
+};
+
+const onDragLeave = () => {
+    isDragOver.value = false;
+};
+const onDrop = (event: any) => {
+    proxy?.$refs["imToolbarImageComponentRef"]?.onDrop(event);
+
+}
+
+const handleImageError = (event) => {
+    event.target.style.display = "none";
+};
+
+const getMessageCount = ((item) => {
     if (item?.is_read == 0) {
         return item?.message_count;
     }
@@ -368,43 +431,6 @@ onBeforeUnmount(() => {
     }
 })
 </script>
-<style lang="less">
-.message-emoji-popover {
-    padding: 6px 0 6px 6px;
-
-    .emoji-picker {
-        width: 320px;
-        max-height: 200px;
-        overflow-y: auto;
-        border-radius: var(--base-radius-default);
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        z-index: 10;
-    }
-
-    .emoji-item {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        cursor: pointer;
-        border-radius: 4px;
-
-        &:hover {
-            background: var(--color-fill-2);
-        }
-    }
-}
-
-.bottom-input-wrap {
-    textarea {
-        line-height: 27px !important;
-    }
-}
-</style>
 <style scoped lang="less">
 .page-container {
     display: flex;
@@ -542,7 +568,8 @@ onBeforeUnmount(() => {
     }
 
     .message-row-self {
-        flex-direction: row-reverse;
+        justify-content: flex-end;
+        // flex-direction: row-reverse;
     }
 
     .message-avatar {
@@ -552,26 +579,88 @@ onBeforeUnmount(() => {
         background: rgba(0, 0, 0, 0.1);
     }
 
-    .message-bubble {
-        max-width: 60%;
-        padding: 8px 12px;
-        border-radius: var(--base-radius-default);
-        background: var(--color-bg-1);
-        word-break: break-word;
-        white-space: pre-wrap;
+    .message-content-image {
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        height: 120px;
+
+        .upload-cancel,
+        .upload-retry {
+            margin-right: 10px;
+            height: 20px;
+            line-height: 20px;
+            width: 20px;
+            font-size: 12px;
+            text-align: center;
+            color: #000;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            cursor: pointer;
+            user-select: none;
+
+            &:hover {
+                color: #fff;
+            }
+        }
+
+        .message-content-image-box {
+            max-width: 60%;
+            border-radius: var(--base-radius-default);
+
+            /* 图片消息样式 */
+            .message-image {
+                height: 120px;
+                border-radius: var(--base-radius-default);
+                display: block;
+                cursor: pointer;
+                transition: transform 0.2s;
+
+                &:hover {
+                    transform: scale(1.05);
+                }
+            }
+
+            /* 图片上传进度样式 */
+            .image-upload-wrapper {
+                position: relative;
+                width: 120px;
+                height: 120px;
+                border-radius: var(--base-radius-default);
+                background: var(--color-bg-1);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            /* 上传失败样式 */
+            .image-upload-failed {
+                background: #fef0f0;
+                border: 1px solid #fde2e2;
+                text-align: center;
+            }
+
+            .failed-icon {
+                font-size: 20px;
+                color: #f56c6c;
+                margin-bottom: 4px;
+            }
+
+            .failed-text {
+                display: block;
+                font-size: 12px;
+                color: #f56c6c;
+                margin-bottom: 4px;
+            }
+        }
     }
 
-    .message-row-self .message-bubble {
-        background: var(--color-primary-light-1);
-        color: var(--color-primary);
-    }
+
 
     /* ================= 底部输入区 ================= */
     .page-container-bottom {
-        display: flex;
-        align-items: flex-end;
-        gap: 8px;
-        padding: 10px;
+        padding: 6px 10px 10px;
         border-top: 1px solid var(--color-border-1);
         background: var(--color-bg-1);
         position: relative;
@@ -580,53 +669,84 @@ onBeforeUnmount(() => {
     .bottom-toolbar {
         display: flex;
         align-items: center;
-    }
 
-    .emoji-btn {
-        width: 35px;
-        height: 35px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        border-radius: var(--base-radius-small);
-        font-size: 24px;
+        .toolbar-item {
+            cursor: pointer;
+            margin-right: 10px;
 
-        &:hover {
-            background: var(--color-fill-2);
-        }
-    }
-
-    .bottom-input-wrap {
-        flex: 1;
-        display: flex;
-        align-items: baseline;
-        position: relative;
-
-        .bottom-input-wrap-textarea {
-            textarea {
-                line-height: 27px;
+            .icon {
+                font-size: var(--base-size-large);
             }
         }
     }
 
-    .send-message-btn {
-        width: 35px;
-        height: 35px;
-        text-align: center;
-        line-height: 35px;
-        background: rgba(0, 0, 0, 0.1);
-        border-radius: var(--base-radius-small);
-        cursor: pointer;
+    .bottom-input-wrap {
+        margin-top: 5px;
+        flex: 1;
+        position: relative;
+        z-index: 1;
 
-        &.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
+        textarea {
+            width: calc(100% - 20px);
+            min-height: 60px;
+            max-height: 100px;
+            line-height: 20px;
+            font-size: 14px;
+            resize: none;
+            overflow-y: auto;
+            background: var(--color-fill-2);
+            border: none;
+            padding: 10px;
+            border-radius: var(--base-radius-default);
+            z-index: 1;
+            outline: none;
+            -ms-overflow-style: none;
+            /* IE / Edge */
+            scrollbar-width: none;
+
+            /* Firefox */
+            :focus,
+            :active {
+                z-index: 1;
+                border: none;
+            }
+
+            ::-webkit-scrollbar {
+                display: none;
+                /* Chrome / Safari / Opera */
+            }
+
         }
 
-        &:hover:not(.disabled) {
-            background: var(--color-fill-2);
+        /* 拖拽高亮效果 */
+        &.drag-over {
+            background: var(--color-fill-3);
+            border: 2px dashed var(--color-primary);
+            border-radius: var(--base-radius-default);
+        }
+
+        .send-message-btn {
+            position: absolute;
+            z-index: 999;
+            right: 10px;
+            bottom: 10px;
+            padding: 5px 20px;
+            text-align: center;
+            background: rgba(0, 0, 0, 1);
+            color: #fff;
+            border-radius: var(--base-radius-small);
+            font-size: var(--base-fs-default);
+            cursor: pointer;
+            user-select: none;
+
+            &.disabled {
+                opacity: 0.1;
+                cursor: not-allowed;
+            }
+
+            &:hover:not(.disabled) {}
         }
     }
+
 }
 </style>

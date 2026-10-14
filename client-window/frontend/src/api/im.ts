@@ -1,13 +1,13 @@
 import { request, requestProgress } from '@/utils/request/default'
 
-export const getConversationListApi = (data:any) => {
+export const getConversationListApi = (data: any) => {
     return request({
         url: 'tenant.account/getConversationList',
         method: 'GET',
         params: data
     })
 }
-export const getMessageListApi = (data:any) => {
+export const getMessageListApi = (data: any) => {
     return request({
         url: 'tenant.account/getMessageListApi',
         method: 'GET',
@@ -21,4 +21,14 @@ export const readMessageApi = (data: any) => {
         method: 'POST',
         data
     })
+}
+
+export const uploadMediaApi = (data: any, options: any = {}) => {
+    return requestProgress({
+        url: `tenant.account/uplaodMedia`,
+        method: 'POST',
+        data
+    }, Object.assign({
+        isAllow: true
+    }, options))
 }

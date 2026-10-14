@@ -36,7 +36,7 @@
                     <div class="content">
                         <div class="fz12">{{ accountInfo.last_ip?.value }}</div>
                         <div class="text-grey" v-if="accountInfo.last_ip?.text">{{ accountInfo.last_ip?.text
-                            }}</div>
+                        }}</div>
                     </div>
                 </div>
             </div>
@@ -82,7 +82,7 @@ const onCreateOk = () => {
 const onUpdateEmail = () => {
     proxy?.$refs["emailComponentRef"]?.open();
 }
-const onChangeAvatar =  (file: File) => {
+const onChangeAvatar = (file: File) => {
     proxy?.$refs['cropperRef']?.close();
     avatarLoading.value = true;
     let fd = new FormData();

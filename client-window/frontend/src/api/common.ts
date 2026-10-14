@@ -28,11 +28,11 @@ export const getEnumApi = () => {
     })
 }
 
-export const getEmailCodeApi = (data:{
-    email:string
-    captcha_code:string
-    captcha_uniqid:string
-    type:string
+export const getEmailCodeApi = (data: {
+    email: string
+    captcha_code: string
+    captcha_uniqid: string
+    type: string
 }) => {
     return request({
         url: 'common.publics/getEmailCode',
