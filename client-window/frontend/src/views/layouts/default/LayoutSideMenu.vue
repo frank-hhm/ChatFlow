@@ -33,13 +33,13 @@ const route = useRoute();
 const emit = defineEmits(["change"]);
 
 const menus = ref<any>([{
-    menu_name: "聊天",
+    menu_name: "消息",
     icon: "icon-pinglun-1",
     menu_path: "/index"
 }, {
     menu_name: "通讯录",
-    icon: "icon-pinglun-1",
-    menu_path: "/index"
+    icon: "icon-tongxunlu3",
+    menu_path: "/detail"
 }])
 
 const curPath = ref<number | string | unknown>(null);

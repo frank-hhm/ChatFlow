@@ -1,7 +1,9 @@
 <template>
     <!-- 图片消息：上传中/失败/成功 三种状态 -->
-    <div class="toolbar-image-btn" @click.stop="triggerImageSelect">
-        <div class="icon icon-img"></div>
+    <div>
+        <div class="toolbar-image-btn" @click.stop="triggerImageSelect">
+            <div class="icon icon-img"></div>
+        </div>
         <input ref="imageInputRef" type="file" accept="image/*" multiple style="display: none;"
             @change="onImageSelect" />
     </div>
@@ -10,11 +12,14 @@
 import { uploadMediaApi } from '@/api/im';
 import { ref, watch } from 'vue';
 
-const emit = defineEmits(['select', 'progress', 'change']);
+const emit = defineEmits(['change']);
 
 const imageInputRef = ref<HTMLElement>();
 
 const isDragOver = ref<boolean>(false);
+
+/** 用 messageId 作为 key 存储 AbortController，用于取消上传 */
+const uploadAbortControllers = ref<Record<number, AbortController>>({});
 
 const triggerImageSelect = () => {
     imageInputRef.value?.click();
@@ -23,8 +28,9 @@ const triggerImageSelect = () => {
 const onImageSelect = (event: any) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
+    console.log('fileData', Array.from(files));
+    handleImageFiles(Array.from(files), "onImageSelect");
     event.target.value = "";
-    handleImageFiles(Array.from(files));
 };
 
 const onDrop = (event: any) => {
@@ -45,11 +51,12 @@ const onDrop = (event: any) => {
  * 处理图片文件：先上传到服务器获取 URL，再将 URL 通过 WebSocket 发送
  * @param files 图片文件列表
  */
-const handleImageFiles = async (files) => {
+const handleImageFiles = async (files: any, type: string = "default") => {
     for (const file of files) {
         // 1. 先生成本地消息（上传中状态）
         const msgId = Date.now() + Math.random();
-
+        console.log("开始处理图片文件:", file.name);
+        emit('change', { event: "start", msgId, content: file, progress: 0 });
         // 2. 执行上传（复用统一的上传逻辑）
         try {
             const result = await uploadImageFile(
@@ -70,6 +77,31 @@ const handleImageFiles = async (files) => {
 };
 
 /**
+ * 重试上传失败的消息
+ * @param msg 失败的消息对象
+ */
+const retryUpload = async (
+    msgId: Number | String,
+    file: File
+) => {
+
+    try {
+        const result = await uploadImageFile(
+            file,
+            msgId,
+            (percent) => {
+                emit('change', { event: "progress", msgId, progress: percent });
+            }
+        );
+
+        const continueNext = handleUploadResult(msgId, result, "重试上传");
+        if (continueNext) return;
+    } catch (err) {
+        console.error("重试上传失败:", err);
+        emit('change', { event: "error", msgId });
+    }
+};
+/**
  * 上传图片文件（封装上传核心逻辑，支持进度和取消）
  * @returns { imageUrl: string, cancelled: boolean }
  */
@@ -79,6 +111,9 @@ const uploadImageFile = async (
     onProgress
 ) => {
     const controller = new AbortController();
+
+    uploadAbortControllers.value[msgId] = controller;
+
     emit('change', { event: "abort", msgId, controller });
 
     let stopProgressWatch = () => { };
@@ -114,17 +149,18 @@ const uploadImageFile = async (
         throw err;
     } finally {
         stopProgressWatch();
+        delete uploadAbortControllers.value[msgId];
     }
 };
 
 /**
  * 处理上传完成后的统一逻辑（成功/取消/失败）
- * @returns { boolean } true=应继续处理下一个文件(cancelled)，false=正常结束
+ * @returns { boolean } true=应继续处理下一个文件(cancel)，false=正常结束
  */
 const handleUploadResult = (msgId, result, logPrefix) => {
     if (result.cancelled) {
         // 将取消事件发给父组件
-        emit('change', { event: "cancelled", msgId, result });
+        emit('change', { event: "cancel", msgId, result });
         console.log(logPrefix + ": 上传已取消");
         return true;
     }
@@ -135,11 +171,27 @@ const handleUploadResult = (msgId, result, logPrefix) => {
     }
 
     //发送上传成功事件
-    emit('change', { event: "sucess", msgId, result });
+    emit('change', { event: "success", msgId, result });
     return false;
 };
 
+/**
+ * 取消指定消息的上传
+ * @param msgId 消息 ID
+ */
+const cancelUpload = (msgId) => {
+    const controller = uploadAbortControllers.value[msgId];
+    if (controller) {
+        controller.abort();
+        delete uploadAbortControllers.value[msgId];
+        emit('change', { event: "cancel", msgId });
+    }
+};
 
+const beforeUnmount = (() => {
+    Object.values(uploadAbortControllers.value).forEach(controller => controller.abort());
+    uploadAbortControllers.value = {};
+})
 
-defineExpose({ onDrop });
+defineExpose({ onDrop, retryUpload, cancelUpload, beforeUnmount });
 </script>

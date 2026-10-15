@@ -16,7 +16,6 @@ router.beforeEach(async (to: any, from: any, next: any) => {
         const permissionStore = usePermissionStoreHook();
         const roleAction = permissionStore.roleAction
         try {
-            console.log(token)
             if (token && token !== 'undefined') {
                 if (to.path === '/login') {
                     // 如果已经登录，并准备进入 Login 页面，则重定向到主页

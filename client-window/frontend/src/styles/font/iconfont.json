@@ -6,6 +6,188 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "9597706",
+      "name": "视频",
+      "font_class": "shipin1",
+      "unicode": "e607",
+      "unicode_decimal": 58887
+    },
+    {
+      "icon_id": "12163488",
+      "name": "视频直播",
+      "font_class": "shipinzhibo",
+      "unicode": "e65b",
+      "unicode_decimal": 58971
+    },
+    {
+      "icon_id": "16588081",
+      "name": "视频",
+      "font_class": "shipin2",
+      "unicode": "e7ba",
+      "unicode_decimal": 59322
+    },
+    {
+      "icon_id": "34272498",
+      "name": "视频",
+      "font_class": "shipin3",
+      "unicode": "e63c",
+      "unicode_decimal": 58940
+    },
+    {
+      "icon_id": "35269636",
+      "name": "精彩视频",
+      "font_class": "jingcaishipin",
+      "unicode": "e7bb",
+      "unicode_decimal": 59323
+    },
+    {
+      "icon_id": "35471738",
+      "name": "视频",
+      "font_class": "shipin4",
+      "unicode": "e615",
+      "unicode_decimal": 58901
+    },
+    {
+      "icon_id": "41172867",
+      "name": "080_视频",
+      "font_class": "a-080_shipin",
+      "unicode": "e7bc",
+      "unicode_decimal": 59324
+    },
+    {
+      "icon_id": "42198989",
+      "name": "folder-video-fill",
+      "font_class": "folder-video-fill",
+      "unicode": "e7be",
+      "unicode_decimal": 59326
+    },
+    {
+      "icon_id": "42242609",
+      "name": "视频",
+      "font_class": "shipin5",
+      "unicode": "e7bf",
+      "unicode_decimal": 59327
+    },
+    {
+      "icon_id": "1766262",
+      "name": "符号-音频",
+      "font_class": "fuhao-yinpin",
+      "unicode": "e671",
+      "unicode_decimal": 58993
+    },
+    {
+      "icon_id": "8443713",
+      "name": "音频",
+      "font_class": "yinpin",
+      "unicode": "e6a0",
+      "unicode_decimal": 59040
+    },
+    {
+      "icon_id": "9815265",
+      "name": "音频",
+      "font_class": "baseline-music_note-px",
+      "unicode": "e7b7",
+      "unicode_decimal": 59319
+    },
+    {
+      "icon_id": "9881679",
+      "name": "KHCFDC_音频文件",
+      "font_class": "yinpinwenjian",
+      "unicode": "e7b8",
+      "unicode_decimal": 59320
+    },
+    {
+      "icon_id": "14463324",
+      "name": "音频",
+      "font_class": "yinpin1",
+      "unicode": "e7b9",
+      "unicode_decimal": 59321
+    },
+    {
+      "icon_id": "14559755",
+      "name": "音频播放",
+      "font_class": "yinpinbofang",
+      "unicode": "e60b",
+      "unicode_decimal": 58891
+    },
+    {
+      "icon_id": "26235131",
+      "name": "音频",
+      "font_class": "yinpin2",
+      "unicode": "e609",
+      "unicode_decimal": 58889
+    },
+    {
+      "icon_id": "27159593",
+      "name": "音频",
+      "font_class": "yinpin3",
+      "unicode": "e603",
+      "unicode_decimal": 58883
+    },
+    {
+      "icon_id": "36180336",
+      "name": "音频文件1",
+      "font_class": "yinpinwenjian1",
+      "unicode": "ebfd",
+      "unicode_decimal": 60413
+    },
+    {
+      "icon_id": "41918501",
+      "name": "音频",
+      "font_class": "yinpin5",
+      "unicode": "e652",
+      "unicode_decimal": 58962
+    },
+    {
+      "icon_id": "41918502",
+      "name": "音频-1",
+      "font_class": "yinpin-1",
+      "unicode": "e653",
+      "unicode_decimal": 58963
+    },
+    {
+      "icon_id": "12820180",
+      "name": "通讯录",
+      "font_class": "tongxunlu",
+      "unicode": "e62e",
+      "unicode_decimal": 58926
+    },
+    {
+      "icon_id": "15053378",
+      "name": "联系人",
+      "font_class": "tongxunlu4",
+      "unicode": "e602",
+      "unicode_decimal": 58882
+    },
+    {
+      "icon_id": "16372311",
+      "name": "通讯录",
+      "font_class": "tongxunlu1",
+      "unicode": "e65f",
+      "unicode_decimal": 58975
+    },
+    {
+      "icon_id": "24463551",
+      "name": "通讯录",
+      "font_class": "ic_tongxunlu2",
+      "unicode": "e61d",
+      "unicode_decimal": 58909
+    },
+    {
+      "icon_id": "24669218",
+      "name": "通讯录",
+      "font_class": "tongxunlu2",
+      "unicode": "e7b5",
+      "unicode_decimal": 59317
+    },
+    {
+      "icon_id": "36875587",
+      "name": "通讯录",
+      "font_class": "tongxunlu3",
+      "unicode": "e7b6",
+      "unicode_decimal": 59318
+    },
+    {
       "icon_id": "16323126",
       "name": "表情",
       "font_class": "biaoqing_3",

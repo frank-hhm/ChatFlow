@@ -14,7 +14,6 @@ export const useWebsocketStore = defineStore("websocket", () => {
         const accountStore = useAccountStoreHook();
         const accountInfo = accountStore.accountInfo
         const token = getToken()
-        console.log("======", token)
         if (!ws.value && token) {
             isWebSocketOpen = true;
             let wsUrl = baseWsUrl();
@@ -51,7 +50,6 @@ export const useWebsocketStore = defineStore("websocket", () => {
         }
         const handleMessage = (event: MessageEvent) => {
             const res = JSON.parse(event.data);
-            console.log(res)
             if (res.code == 701) {
                 router.replace({
                     path: "/login",

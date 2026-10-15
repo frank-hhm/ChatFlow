@@ -10,7 +10,7 @@
                 </div>
                 <div class="item-right">
                     <div class="item-right-top">
-                        <div>{{ item.visitor_id }}</div>
+                        <div class="item-name">{{ item.visitor_id }}</div>
                         <div class="item-time">{{ item.friendly_time }}</div>
                     </div>
                     <div class="item-content">{{ item.last_message }}</div>
@@ -34,48 +34,29 @@
                     <div class="message-time" v-if="msg.showTime">
                         {{ msg.friendly_time }}
                     </div>
-
                     <div class="message-row"
                         :class="msg.sender_type === 'client' ? 'message-row-self' : 'message-row-other'">
+                        <a-avatar v-if="msg.sender_type !== 'client'" class="message-avatar" :size="36">游客</a-avatar>
 
-                        <a-avatar v-if="msg.sender_type !== 'client'" class="message-avatar" :size="32"
-                            shape="square">游客</a-avatar>
+                        <!-- 图片消息 -->
+                        <imMessageImageComponent :ref="`imMessageImageComponentRef${msg.id}`"
+                            v-if="msg.msg_type == 'image'" :msg="msg" @change="onChangeMessageImage">
+                        </imMessageImageComponent>
 
-                        <!-- 图片消息：上传中/失败/成功 三种状态 -->
-                        <div class="message-content-image" v-if="msg.msg_type == 'image'">
+                        <!-- 音频消息 -->
+                        <imMessageAudioComponent :ref="`imMessageAudioComponentRef${msg.id}`"
+                            v-else-if="msg.msg_type === 'audio'" :msg="msg" @change="onChangeMessageAudio">
+                        </imMessageAudioComponent>
 
-                            <!-- <div class="upload-cancel icon icon-cuo" v-if="msg.uploadStatus === 'uploading'"
-                                @click="cancelUpload(msg.id)"></div>
-                            <div v-else-if="msg.uploadStatus === 'failed'" class="upload-retry icon icon-shuaxin"
-                                @click="retryUpload(msg)"></div> -->
-
-                            <div class="message-content-image-box">
-                                <!-- 上传中 -->
-                                <div v-if="msg.uploadStatus === 'uploading'" class="image-upload-wrapper">
-                                    <!-- <div class="upload-progress-bg">
-                                        <div class="upload-progress-bar" :style="{ width: msg.progress + '%' }"></div>
-                                    </div> -->
-                                    <!-- <span class="upload-text">{{ msg.progress }}%</span> -->
-                                    <a-progress type="circle" status='warning'
-                                        :percent="parseFloat(msg.progress) / 100" />
-                                </div>
-                                <!-- 上传失败 -->
-                                <div v-else-if="msg.uploadStatus === 'failed'"
-                                    class="image-upload-wrapper image-upload-failed">
-                                    <div>
-                                        <div class="failed-icon icon icon-tishi"></div>
-                                        <div class="failed-text">上传失败</div>
-                                    </div>
-                                </div>
-                                <!-- 上传成功 -->
-                                <img v-else :src="msg.content" class="message-image" @error="handleImageError" />
-                            </div>
-                        </div>
+                        <!-- 视频消息 -->
+                        <imMessageVideoComponent :ref="`imMessageVideoComponentRef${msg.id}`"
+                            v-else-if="msg.msg_type === 'video'" :msg="msg" @change="onChangeMessageVideo">
+                        </imMessageVideoComponent>
 
                         <imMessageTextComponent v-else :content="msg.content" :sender="msg.sender_type">
                         </imMessageTextComponent>
 
-                        <a-avatar v-if="msg.sender_type === 'client'" class="message-avatar" :size="32" shape="square"
+                        <a-avatar v-if="msg.sender_type === 'client'" class="message-avatar" :size="36"
                             :imageUrl="msg.avatar"></a-avatar>
                     </div>
                 </div>
@@ -90,10 +71,14 @@
                     <div class="toolbar-item">
                         <imToolbarImageComponent ref="imToolbarImageComponentRef" @change="onChangeToolbarImage" />
                     </div>
-
-                    <!-- <div class="toolbar-item" @click="triggerImageSelect">
-                        <div class="icon icon-img"></div>
-                    </div> -->
+                    <!-- 音频工具 -->
+                    <div class="toolbar-item">
+                        <imToolbarAudioComponent ref="imToolbarAudioComponentRef" @change="onChangeToolbarAudio" />
+                    </div>
+                    <!-- 视频工具 -->
+                    <div class="toolbar-item">
+                        <imToolbarVideoComponent ref="imToolbarVideoComponentRef" @change="onChangeToolbarVideo" />
+                    </div>
                 </div>
                 <div class="bottom-input-wrap" :class="{ 'drag-over': isDragOver }" @dragover.prevent="onDragOver"
                     @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
@@ -115,6 +100,11 @@ import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref
 import imToolbarEmojiPickerComponent from "@/views/components/im/toolbar/emoji.vue"
 import imToolbarImageComponent from "@/views/components/im/toolbar/image.vue"
 import imMessageTextComponent from "@/views/components/im/message/text.vue"
+import imMessageImageComponent from "@/views/components/im/message/image.vue"
+import imToolbarAudioComponent from "@/views/components/im/toolbar/audio.vue"
+import imToolbarVideoComponent from "@/views/components/im/toolbar/video.vue"
+import imMessageAudioComponent from "@/views/components/im/message/audio.vue"
+import imMessageVideoComponent from "@/views/components/im/message/video.vue"
 
 const {
     proxy,
@@ -178,21 +168,16 @@ const autoScrollBottom = ref(true);
 const loadHistoryMessages = async () => {
     if (historyLoading.value || noMoreHistory.value) return;
     if (!itemConversation.value.id) return;
-
     historyLoading.value = true;
-
     const container = messageContainerRef.value;
     const oldScrollHeight = container ? container.scrollHeight : 0;
-
     try {
         const res = await getMessageListApi({
             conversation_id: itemConversation.value.id,
             page: messagePage.value,
             limit: PAGE_SIZE,
         });
-
         const list: any[] = res.data?.data?.list ?? res.data?.data ?? [];
-
         if (list.length === 0) {
             noMoreHistory.value = true;
         } else {
@@ -202,9 +187,7 @@ const loadHistoryMessages = async () => {
                 showTime: true,
                 friendly_time: item.friendly_time
             }));
-
             messageList.value = [...enriched, ...messageList.value];
-
             nextTick(() => {
                 if (container && oldScrollHeight > 0) {
                     container.scrollTop = container.scrollHeight - oldScrollHeight;
@@ -220,6 +203,7 @@ const loadHistoryMessages = async () => {
     }
 };
 
+/* ================= 监听会话盒子滚动 ================= */
 const onMessageScroll = () => {
     const container = messageContainerRef.value;
     if (!container) return;
@@ -232,6 +216,7 @@ const onMessageScroll = () => {
     autoScrollBottom.value = scrollHeight - scrollTop - clientHeight < 80;
 };
 
+/* ================= 会话盒子滚动到底部 ================= */
 const scrollToBottom = () => {
     nextTick(() => {
         const container = messageContainerRef.value;
@@ -243,6 +228,7 @@ const scrollToBottom = () => {
 
 /* ================= 发送消息 ================= */
 const newMessageText = ref<string>("");
+
 const textareaRef = ref<HTMLElement>();
 
 const onSendMessage = () => {
@@ -258,15 +244,11 @@ const onSendMessage = () => {
 
     useWebsocketStore().sendMessage(messageObj);
 
-    messageList.value.push({
-        id: Date.now(),
+    messageList.value.push(createMessageObject({
         content,
-        showTime: true,
-        friendly_time: "刚刚",
-        avatar: accountInfo.value.avatar,
-        sender_type: "client",
-        msg_type: "text"
-    });
+        msgType: "text",
+        senderType: "client"
+    }));
 
     newMessageText.value = "";
     proxy.$refs["imToolbarEmojiPickerComponentRef"]?.close();
@@ -280,35 +262,248 @@ const onSendMessage = () => {
     });
 };
 
-/* ================= 监听新消息自动滚动 ================= */
-watch(
-    () => messageList.value.length,
-    () => {
-        if (autoScrollBottom.value) {
-            scrollToBottom();
-        }
+
+
+
+/**
+ * 统一的消息对象工厂函数
+ * @param {Object} options - 配置项
+ * @param {string} options.msgType - 消息类型: 'text' | 'image' | 'file' | ...
+ * @param {string} options.content - 文本内容（msgType 为 text 时使用）
+ * @param {string} options.fileUrl - 文件地址（msgType 为 image/file 时使用）
+ * @param {string} options.senderType - 发送方: 'client' | 'agent' | 'system'
+ * @param {Object} options.extra - 额外字段，会直接合并到消息对象上
+ * @param {Object} options.baseMsg - 基础消息对象（可选，有值时会以其为模板扩展）
+ * @returns {Object} 消息对象
+ */
+const createMessageObject = ({
+    msgType = 'text',
+    content = '',
+    fileUrl = null,
+    senderType = 'client',
+    extra = {},
+    baseMsg = null,
+}: any = {}) => {
+    const msgObj = baseMsg ? { ...baseMsg } : {
+        id: Date.now() + Math.random(),
+    };
+    msgObj.avatar = msgObj.avatar || accountInfo.value.avatar || '';
+    msgObj.sender_type = senderType;
+    msgObj.msg_type = msgType;
+    msgObj.showTime = msgObj.showTime ?? true;
+
+    if (msgType === 'text') {
+        msgObj.content = content;
+    } else {
+        msgObj.file_url = fileUrl;
+        msgObj.content = msgObj.content ?? '';
     }
-);
-watch(
-    () => newMessageText.value,
-    () => {
+    if (extra && typeof extra === 'object') {
+        Object.assign(msgObj, extra);
+    }
+
+    return msgObj;
+};
+
+
+/* ================= 会话工具-事件回调 表情 ================= */
+const onChangeToolbarEmoji = (emoji: String) => {
+    newMessageText.value += emoji;
+    textareaRef.value?.focus?.();
+};
+
+
+/* ================= 统一工具栏事件处理（图片/音频/视频共用） ================= */
+/**
+ * 创建工具栏事件处理函数
+ * @param {string} msgType - 消息类型: 'image' | 'audio' | 'video'
+ */
+const createToolbarHandler = (msgType, callback: any | unknown = {
+    successCallback: Function
+}) => {
+    return (res) => {
+        if (!res.event) return;
+
+        let msg;
+        switch (res.event) {
+            case "start":
+                messageList.value.push(createMessageObject({
+                    msgType,
+                    senderType: "client",
+                    fileUrl: res.content ?? null,
+                    baseMsg: {
+                        id: res.msgId || Date.now() + Math.random(),
+                        avatar: accountInfo.value.avatar,
+                        friendly_time: "刚刚",
+                        uploadStatus: "uploading",
+                        progress: 0,
+                    }
+                }));
+                autoScrollBottom.value = true;
+                scrollToBottom();
+                break;
+
+            case "progress":
+                msg = messageList.value.find((m) => m.id === res.msgId);
+                if (msg) msg.progress = Number(res.progress || 0);
+                break;
+
+            case "error":
+                msg = messageList.value.find((m) => m.id === res.msgId);
+                return;
+                if (msg) {
+                    msg.uploadStatus = "failed";
+                    msg.progress = 0;
+                }
+                break;
+
+            case "cancel":
+                messageList.value = messageList.value.filter((m) => m.id !== res.msgId);
+                break;
+
+            case "success":
+                return;
+                // 兼容不同资源类型：imageUrl / audioUrl / videoUrl
+                const url = res.result?.[msgType + 'Url'] || "";
+                msg = messageList.value.find((m) => m.id === res.msgId);
+                if (msg) {
+                    msg.content = url;
+                    msg.uploadStatus = "success";
+                    msg.progress = 100;
+                }
+                // 图片类型需要初始化组件（获取文件大小等）
+                if (callback && callback?.successCallback) {
+                    callback.successCallback(res.msgId);
+                }
+                // 通过 WebSocket 发送消息
+                useWebsocketStore().sendMessage({
+                    type: "client_reply",
+                    content: url,
+                    conversation_id: itemConversation.value.id,
+                    msg_type: msgType,
+                });
+                initConversationList();
+                break;
+        }
+    };
+};
+
+/* ================= 统一消息事件处理（取消/重试 共用） ================= */
+/**
+ * 创建消息事件处理函数
+ * @param {string} toolbarRefName - 工具栏组件 ref 名称
+ * @returns {Function} 事件处理函数
+ */
+const createMessageHandler = (toolbarRefName) => {
+    return (res) => {
+        switch (res.event) {
+            case "cancel":
+                proxy?.$refs[toolbarRefName]?.cancelUpload(res.msgId);
+                break;
+
+            case "retry":
+                const msg = messageList.value.find((m) => m.id === res.msgId);
+                const file = msg?.file;
+                if (!file) {
+                    console.warn("文件已失效，请重新选择");
+                    msg.uploadStatus = "failed";
+                    return;
+                }
+                msg.uploadStatus = "uploading";
+                msg.progress = 0;
+                proxy?.$refs[toolbarRefName]?.retryUpload(msg.id, file);
+                break;
+        }
+    };
+};
+
+/** 图片工具栏回调 */
+const onChangeToolbarImage = createToolbarHandler("image", {
+    successCallback: (msgId: String | Number | unknown) => {
         nextTick(() => {
-            const textarea = textareaRef.value;
-            if (textarea) {
-                textarea.style.height = "auto";
-                textarea.style.height = "calc(" + textarea.scrollHeight + "px - 20px)";
-                textarea.scrollTop = textarea.scrollHeight;
+            const refName = `imMessageImageComponentRef${msgId}`;
+            if (proxy?.$refs[refName] && proxy?.$refs[refName][0]) {
+                proxy?.$refs[refName][0].init();
             }
         });
     }
-)
-
-onMounted(() => {
-    initConversationList(true);
-    webSocketOpenCallback();
 });
 
-/* ================= WebSocket 消息处理 ================= */
+/** 音频工具栏回调 */
+const onChangeToolbarAudio = createToolbarHandler("audio", {
+    successCallback: (msgId: String | Number | unknown) => {
+        nextTick(() => {
+            const refName = `imMessageAudioComponentRef${msgId}`;
+            if (proxy?.$refs[refName] && proxy?.$refs[refName][0]) {
+                proxy?.$refs[refName][0].init();
+            }
+        });
+    }
+});
+
+/** 视频工具栏回调 */
+const onChangeToolbarVideo = createToolbarHandler("video", {
+    successCallback: (msgId: String | Number | unknown) => {
+        nextTick(() => {
+            const refName = `imMessageVideoComponentRef${msgId}`;
+            if (proxy?.$refs[refName] && proxy?.$refs[refName][0]) {
+                proxy?.$refs[refName][0].init();
+            }
+        });
+    }
+});
+
+/** 图片消息回调 */
+const onChangeMessageImage = createMessageHandler("imToolbarImageComponentRef");
+
+/** 音频消息回调 */
+const onChangeMessageAudio = createMessageHandler("imToolbarAudioComponentRef");
+
+/** 视频消息回调 */
+const onChangeMessageVideo = createMessageHandler("imToolbarVideoComponentRef");
+
+/* ================= 会话框的拖动事件 ================= */
+
+const isDragOver = ref<boolean>(false)
+
+const onDragOver = () => {
+    isDragOver.value = true;
+};
+
+const onDragLeave = () => {
+    isDragOver.value = false;
+};
+const onDrop = (event: any) => {
+    proxy?.$refs["imToolbarImageComponentRef"]?.onDrop(event);
+
+}
+
+
+/* ================= 获取消息数 ================= */
+const getMessageCount = ((item) => {
+    if (item?.is_read == 0) {
+        return item?.message_count;
+    }
+    return item?.new_message_count || 0;
+});
+
+
+/* =================创建 webSocket 监听 ================= */
+const messageTimer = ref(null)
+const webSocketOpenCallback = () => {
+    if (useWebsocketStore().ws) {
+        $utils.eventsListener("webSocketMessage", webSocketMessageCallback);
+    } else {
+        setTimeout(() => {
+            if (messageTimer.value) {
+                clearInterval(messageTimer.value)
+                messageTimer.value = null
+            }
+            webSocketOpenCallback()
+        }, 5000)
+    }
+}
+/* ================= WebSocket 监听回调 消息处理 ================= */
 const webSocketMessageCallback = ({ detail }) => {
     console.log("ws message:", detail);
 
@@ -333,7 +528,7 @@ const webSocketMessageCallback = ({ detail }) => {
                 id: convId,
                 visitor_id: msg.visitor_id,
                 visitor_name: msg.visitor_name || msg.nick_name || "访客",
-                avatar: msg.avatar || "https://i.pravatar.cc/150?img=10",
+                avatar: msg.avatar,
                 last_message: msg.content,
                 last_message_time: msg.created_at || msg.friendly_time,
                 new_message_count: 1,
@@ -343,17 +538,12 @@ const webSocketMessageCallback = ({ detail }) => {
         }
 
         if (itemConversation.value.id === convId) {
-            const enriched = {
-                ...msg,
-                showTime: true,
-                friendly_time: msg.friendly_time,
-                avatar:
-                    msg.sender_type === "client"
-                        ? "https://i.pravatar.cc/150?img=10"
-                        : msg.avatar || "https://i.pravatar.cc/150?img=1",
-                msg_type: msg.msg_type || "text",
-            };
-            messageList.value.push(enriched);
+            messageList.value.push(createMessageObject({
+                msgType: msg.msg_type || "text",
+                senderType: msg.sender_type || "client",
+                content: msg.content,
+                baseMsg: msg
+            }));
             scrollToBottom();
 
             const target = conversationList.value.find(
@@ -365,63 +555,35 @@ const webSocketMessageCallback = ({ detail }) => {
         }
     }
 };
-const messageTimer = ref(null)
 
-const webSocketOpenCallback = () => {
-    if (useWebsocketStore().ws) {
-        $utils.eventsListener("webSocketMessage", webSocketMessageCallback);
-    } else {
-        setTimeout(() => {
-            if (messageTimer.value) {
-                clearInterval(messageTimer.value)
-                messageTimer.value = null
+
+/* ================= 监听新消息自动滚动 ================= */
+watch(
+    () => messageList.value.length,
+    () => {
+        if (autoScrollBottom.value) {
+            scrollToBottom();
+        }
+    }
+);
+watch(
+    () => newMessageText.value,
+    () => {
+        nextTick(() => {
+            const textarea = textareaRef.value;
+            if (textarea) {
+                textarea.style.height = "auto";
+                textarea.style.height = "calc(" + textarea.scrollHeight + "px - 20px)";
+                textarea.scrollTop = textarea.scrollHeight;
             }
-            webSocketOpenCallback()
-        }, 5000)
+        });
     }
-}
+)
 
-/* ================= 表情 ================= */
-const onChangeToolbarEmoji = (emoji: String) => {
-    newMessageText.value += emoji;
-    textareaRef.value?.focus?.();
-};
 
-/* ================= 图片 ================= */
-const onChangeToolbarImage = (res: {
-    event?: String,
-    msgId?: String | Number,
-    controller?: any,
-    result?: Object | any
-}) => {
-    console.log(res)
-}
-
-/* ================= Dragover prevent ================= */
-
-const isDragOver = ref<boolean>(false)
-
-const onDragOver = () => {
-    isDragOver.value = true;
-};
-
-const onDragLeave = () => {
-    isDragOver.value = false;
-};
-const onDrop = (event: any) => {
-    proxy?.$refs["imToolbarImageComponentRef"]?.onDrop(event);
-
-}
-
-const handleImageError = (event) => {
-    event.target.style.display = "none";
-};
-
-const getMessageCount = ((item) => {
-    if (item?.is_read == 0) {
-        return item?.message_count;
-    }
-    return item?.new_message_count || 0;
+onMounted(() => {
+    initConversationList(true);
+    webSocketOpenCallback();
 });
 
 onBeforeUnmount(() => {
@@ -429,6 +591,9 @@ onBeforeUnmount(() => {
         clearInterval(messageTimer.value)
         messageTimer.value = null
     }
+    proxy?.$refs["imToolbarImageComponentRef"]?.beforeUnmount();
+    proxy?.$refs["imToolbarAudioComponentRef"]?.beforeUnmount();
+    proxy?.$refs["imToolbarVideoComponentRef"]?.beforeUnmount();
 })
 </script>
 <style scoped lang="less">
@@ -510,6 +675,10 @@ onBeforeUnmount(() => {
                 justify-content: space-between;
             }
 
+            .item-name {
+                font-weight: bold;
+            }
+
             .item-time {
                 font-size: var(--base-size-small);
                 color: var(--color-text-3);
@@ -573,89 +742,8 @@ onBeforeUnmount(() => {
     }
 
     .message-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: var(--base-radius-small);
-        background: rgba(0, 0, 0, 0.1);
+        user-select: none;
     }
-
-    .message-content-image {
-        position: relative;
-        display: flex;
-        align-items: flex-end;
-        height: 120px;
-
-        .upload-cancel,
-        .upload-retry {
-            margin-right: 10px;
-            height: 20px;
-            line-height: 20px;
-            width: 20px;
-            font-size: 12px;
-            text-align: center;
-            color: #000;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 20px;
-            cursor: pointer;
-            user-select: none;
-
-            &:hover {
-                color: #fff;
-            }
-        }
-
-        .message-content-image-box {
-            max-width: 60%;
-            border-radius: var(--base-radius-default);
-
-            /* 图片消息样式 */
-            .message-image {
-                height: 120px;
-                border-radius: var(--base-radius-default);
-                display: block;
-                cursor: pointer;
-                transition: transform 0.2s;
-
-                &:hover {
-                    transform: scale(1.05);
-                }
-            }
-
-            /* 图片上传进度样式 */
-            .image-upload-wrapper {
-                position: relative;
-                width: 120px;
-                height: 120px;
-                border-radius: var(--base-radius-default);
-                background: var(--color-bg-1);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                overflow: hidden;
-            }
-
-            /* 上传失败样式 */
-            .image-upload-failed {
-                background: #fef0f0;
-                border: 1px solid #fde2e2;
-                text-align: center;
-            }
-
-            .failed-icon {
-                font-size: 20px;
-                color: #f56c6c;
-                margin-bottom: 4px;
-            }
-
-            .failed-text {
-                display: block;
-                font-size: 12px;
-                color: #f56c6c;
-                margin-bottom: 4px;
-            }
-        }
-    }
-
 
 
     /* ================= 底部输入区 ================= */

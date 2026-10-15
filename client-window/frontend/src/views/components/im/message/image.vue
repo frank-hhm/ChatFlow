@@ -2,17 +2,11 @@
     <!-- 图片消息：上传中/失败/成功 三种状态 -->
     <div class="message-content-image">
 
-        <div class="upload-cancel icon icon-cuo" v-if="msg.uploadStatus === 'uploading'" @click="cancelUpload(msg.id)">
-        </div>
-        <div v-else-if="msg.uploadStatus === 'failed'" class="upload-retry icon icon-shuaxin" @click="retryUpload(msg)">
-        </div>
+        <div class="upload-cancel icon icon-cuo" v-if="msg.uploadStatus === 'uploading'" @click="cancelUpload(msg.id)"></div>
+        <div v-else-if="msg.uploadStatus === 'failed'" class="upload-retry icon icon-shuaxin" @click="retryUpload(msg)"></div>
         <div class="message-content-image-box">
             <!-- 上传中 -->
             <div v-if="msg.uploadStatus === 'uploading'" class="image-upload-wrapper">
-                <!-- <div class="upload-progress-bg">
-                                        <div class="upload-progress-bar" :style="{ width: msg.progress + '%' }"></div>
-                                    </div> -->
-                <!-- <span class="upload-text">{{ msg.progress }}%</span> -->
                 <a-progress type="circle" status='warning' :percent="parseFloat(msg.progress) / 100" />
             </div>
             <!-- 上传失败 -->
@@ -22,183 +16,208 @@
                     <div class="failed-text">上传失败</div>
                 </div>
             </div>
-
             <!-- 上传成功 -->
-            <img v-else :src="msg.content" class="message-image" @error="handleImageError" />
+            <div v-else class="image-success-wrapper">
+                <img :src="msg.content" class="message-image" @error="handleImageError"
+                    @click="previewImage(msg.content)" />
+                <!-- 文件大小标签 -->
+                <span v-if="fileSizeText" class="image-size-tag">{{ fileSizeText }}</span>
+            </div>
+            <a-image-preview :src="previewImageUrl" v-model:visible="imageVisible" />
         </div>
     </div>
 </template>
 <script setup lang="ts">
 import { uploadMediaApi } from '@/api/im';
-import { ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+
+const props = withDefaults(
+    defineProps<{
+        msg?: Object | any;
+    }>(),
+    {
+        msg: () => {
+            return {}
+        },
+    }
+);
 
 const emit = defineEmits(['change']);
 
-const triggerImageSelect = () => {
-    imageInputRef.value?.click();
+/* ================= 图片预览 ================= */
+const imageVisible = ref<Boolean>(false);
+
+const previewImageUrl = ref<string | null>(null);
+
+const previewImage = (imageUrl: string) => {
+    previewImageUrl.value = imageUrl;
+    imageVisible.value = true;
+}
+
+
+/* ================= 文件大小格式化 ================= */
+/* ================= 通过 URL 获取文件大小 ================= */
+const fileSizeBytes = ref<number | null>(null);
+
+const fetchFileSize = async (url: string) => {
+    if (!url) return;
+    try {
+        // 用 HEAD 请求只拿响应头，不下载完整图片，省流量
+        const res = await fetch(url, { method: 'HEAD' });
+        const size = res.headers.get('content-length');
+        if (size) {
+            fileSizeBytes.value = parseInt(size, 10);
+        }
+    } catch (e) {
+        console.log('获取图片大小失败', e);
+        // HEAD 请求可能跨域失败，降级用 GET + blob
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            fileSizeBytes.value = blob.size;
+        } catch (e2) {
+            console.warn('获取图片大小失败', url, e2);
+        }
+    }
 };
 
-/* ================= 图片上传发送（先上传再发送） ================= */
+const init = () => {
+    const url = props.msg.content;
+    if (url) {
+        fetchFileSize(url);
+    }
+};
 
-/** 用 messageId 作为 key 存储 AbortController，用于取消上传 */
-const uploadAbortControllers = ref<Record<number, AbortController>>({});
+onMounted(() => {
+    init()
+});
+
+
+const fileSizeText = computed(() => {
+    const size = fileSizeBytes.value;
+    if (!size) return '';
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+    return (size / (1024 * 1024)).toFixed(1) + ' MB';
+});
 
 /**
  * 取消指定消息的上传
  * @param msgId 消息 ID
  */
 const cancelUpload = (msgId) => {
-    const controller = uploadAbortControllers.value[msgId];
-    if (controller) {
-        controller.abort();
-        delete uploadAbortControllers.value[msgId];
-        emit("change", msgId)
-    }
+    emit("change", {
+        event: "cancel",
+        msgId,
+    })
 };
-
-
 /**
- * 上传图片文件（封装上传核心逻辑，支持进度和取消）
- * @returns { imageUrl: string, cancelled: boolean }
+ * 重新上传
+ * @param msgId 消息 ID
  */
-const uploadImageFile = async (
-    file,
-    msgId,
-    onProgress
-) => {
-    const controller = new AbortController();
-    uploadAbortControllers.value[msgId] = controller;
-
-    let stopProgressWatch = () => { };
-
-    try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const { progress, request } = uploadMediaApi(
-            formData,
-            { signal: controller.signal }
-        );
-
-        stopProgressWatch = watch(
-            () => progress.percent,
-            (newPercent) => onProgress(newPercent)
-        );
-
-        const uploadRes = await request;
-
-        // 兼容不同的响应结构
-        const imageUrl = uploadRes.data?.file_url || uploadRes.data?.data?.url || uploadRes.data?.url;
-
-        if (!imageUrl) {
-            throw new Error("上传成功但未返回图片 URL");
-        }
-
-        return { imageUrl, cancelled: false };
-    } catch (err: any) {
-        if (err.code === "CANCELLED" || err.name === "CanceledError") {
-            return { imageUrl: null, cancelled: true };
-        }
-        throw err;
-    } finally {
-        stopProgressWatch();
-        delete uploadAbortControllers.value[msgId];
-    }
-};
-
-/**
- * 重试上传失败的消息
- * @param msg 失败的消息对象
- */
-const retryUpload = async (msg) => {
-    console.log("重试上传:", msg.id);
-    const file = msg.file;
-    if (!file) {
-        console.warn("文件已失效，请重新选择");
-        msg.uploadStatus = "failed";
-        return;
-    }
-
-    const msgId = msg.id;
-
-    // 重试前恢复上传中状态，显示进度条
-    msg.uploadStatus = "uploading";
-    msg.progress = 0;
-
-    try {
-        const result = await uploadImageFile(
-            file,
-            msgId,
-            (percent) => {
-                const m = messageList.value.find((x) => x.id === msgId);
-
-                if (m) m.progress = percent;
-            }
-        );
-
-        const continueNext = handleUploadResult(msgId, result, "重试上传");
-        if (continueNext) return;
-    } catch (err) {
-        console.error("重试上传失败:", err);
-        handleUploadFail(msgId);
-    }
-};
-
-
-/**
- * 处理上传完成后的统一逻辑（成功/取消/失败）
- * @returns { boolean } true=应继续处理下一个文件(cancelled)，false=正常结束
- */
-const handleUploadResult = (msgId, result, logPrefix) => {
-    if (result.cancelled) {
-        messageList.value = messageList.value.filter((m) => m.id !== msgId);
-        console.log(logPrefix + ": 上传已取消");
-        return true;
-    }
-
-    if (!result.imageUrl) {
-        handleUploadFail(msgId);
-        return false;
-    }
-
-    handleUploadSuccess(msgId, result.imageUrl);
-    return false;
-};
-
-
-
-/**
- * 上传成功后更新消息状态并发送 WebSocket 消息
- */
-const handleUploadSuccess = (msgId, imageUrl) => {
-    const msg = messageList.value.find((m) => m.id === msgId);
-    if (msg) {
-        msg.content = imageUrl;
-        msg.uploadStatus = "success";
-        msg.progress = 100;
-    }
-
-    useWebsocketStore().sendMessage({
-        type: "client_reply",
-        content: imageUrl,
-        conversation_id: itemConversation.value.id,
-        msg_type: "image",
-    });
-    initConversationList();
-};
-
-/**
- * 上传失败后标记消息为失败状态
- */
-const handleUploadFail = (msgId) => {
-    const msg = messageList.value.find((m) => m.id === msgId);
-    if (msg) {
-        msg.uploadStatus = "failed";
-        msg.progress = 0;
-    }
+const retryUpload = (msgId) => {
+    emit("change", {
+        event: "retry",
+        msgId,
+    })
 };
 
 const handleImageError = (event) => {
     event.target.style.display = "none";
 };
+defineExpose({ init });
 </script>
+
+<style scoped lang="less">
+.message-content-image {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    height: 120px;
+
+    .upload-cancel,
+    .upload-retry {
+        margin-right: 10px;
+        height: 20px;
+        line-height: 20px;
+        width: 20px;
+        font-size: 12px;
+        text-align: center;
+        color: #000;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        cursor: pointer;
+        user-select: none;
+
+        &:hover {
+            color: #fff;
+        }
+    }
+
+    .message-content-image-box {
+        max-width: 60%;
+        border-radius: var(--base-radius-default);
+
+        /* 图片消息样式 */
+        .message-image {
+            height: 120px;
+            border-radius: var(--base-radius-default);
+            display: block;
+            cursor: pointer;
+            background: var(--color-bg-1);
+        }
+
+        /* 图片上传进度样式 */
+        .image-upload-wrapper {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: var(--base-radius-default);
+            background: var(--color-bg-1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 上传失败样式 */
+        .image-upload-failed {
+            background: #fef0f0;
+            border: 1px solid #fde2e2;
+            text-align: center;
+        }
+
+        .failed-icon {
+            font-size: 20px;
+            color: #f56c6c;
+            margin-bottom: 4px;
+        }
+
+        .failed-text {
+            display: block;
+            font-size: 12px;
+            color: #f56c6c;
+            margin-bottom: 4px;
+        }
+
+        .image-success-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .image-size-tag {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            padding: 2px 6px;
+            font-size: 11px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: -1px;
+        }
+    }
+}
+</style>

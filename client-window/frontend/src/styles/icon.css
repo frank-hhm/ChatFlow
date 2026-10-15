@@ -14,6 +14,110 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-shipin1:before {
+  content: "\e607";
+}
+
+.icon-shipinzhibo:before {
+  content: "\e65b";
+}
+
+.icon-shipin2:before {
+  content: "\e7ba";
+}
+
+.icon-shipin3:before {
+  content: "\e63c";
+}
+
+.icon-jingcaishipin:before {
+  content: "\e7bb";
+}
+
+.icon-shipin4:before {
+  content: "\e615";
+}
+
+.icon-a-080_shipin:before {
+  content: "\e7bc";
+}
+
+.icon-folder-video-fill:before {
+  content: "\e7be";
+}
+
+.icon-shipin5:before {
+  content: "\e7bf";
+}
+
+.icon-fuhao-yinpin:before {
+  content: "\e671";
+}
+
+.icon-yinpin:before {
+  content: "\e6a0";
+}
+
+.icon-baseline-music_note-px:before {
+  content: "\e7b7";
+}
+
+.icon-yinpinwenjian:before {
+  content: "\e7b8";
+}
+
+.icon-yinpin1:before {
+  content: "\e7b9";
+}
+
+.icon-yinpinbofang:before {
+  content: "\e60b";
+}
+
+.icon-yinpin2:before {
+  content: "\e609";
+}
+
+.icon-yinpin3:before {
+  content: "\e603";
+}
+
+.icon-yinpinwenjian1:before {
+  content: "\ebfd";
+}
+
+.icon-yinpin5:before {
+  content: "\e652";
+}
+
+.icon-yinpin-1:before {
+  content: "\e653";
+}
+
+.icon-tongxunlu:before {
+  content: "\e62e";
+}
+
+.icon-tongxunlu4:before {
+  content: "\e602";
+}
+
+.icon-tongxunlu1:before {
+  content: "\e65f";
+}
+
+.icon-ic_tongxunlu2:before {
+  content: "\e61d";
+}
+
+.icon-tongxunlu2:before {
+  content: "\e7b5";
+}
+
+.icon-tongxunlu3:before {
+  content: "\e7b6";
+}
+
 .icon-biaoqing_3:before {
   content: "\e7b0";
 }
@@ -1173,3 +1277,4 @@
 .icon-yanfa:before {
   content: "\e7aa";
 }
+

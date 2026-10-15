@@ -22,7 +22,8 @@ const props = withDefaults(
 .message-content-text {
     max-width: 60%;
     padding: 8px 12px;
-    border-radius: var(--base-radius-default);
+    line-height: 20px;
+    border-radius: 36px;
     background: var(--color-bg-1);
     word-break: break-word;
     white-space: pre-wrap;

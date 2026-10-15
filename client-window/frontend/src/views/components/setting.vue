@@ -27,18 +27,6 @@
                         <a-button size="small" shape="circle" @click="onUpdateEmail"><icon-edit /></a-button>
                     </div>
                 </div>
-                <div class="detail-item">
-                    <div class="title">姓名：</div>
-                    <div class="desc">{{ accountInfo.real_name }}</div>
-                </div>
-                <div class="detail-item">
-                    <div class="title">登录IP：</div>
-                    <div class="content">
-                        <div class="fz12">{{ accountInfo.last_ip?.value }}</div>
-                        <div class="text-grey" v-if="accountInfo.last_ip?.text">{{ accountInfo.last_ip?.text
-                        }}</div>
-                    </div>
-                </div>
             </div>
         </div>
         <template #footer>
