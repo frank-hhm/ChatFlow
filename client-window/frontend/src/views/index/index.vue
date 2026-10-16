@@ -280,6 +280,7 @@ const createMessageObject = ({
     msgType = 'text',
     content = '',
     fileUrl = null,
+    file = null,
     senderType = 'client',
     extra = {},
     baseMsg = null,
@@ -295,9 +296,11 @@ const createMessageObject = ({
     if (msgType === 'text') {
         msgObj.content = content;
     } else {
+        msgObj.file = file;
         msgObj.file_url = fileUrl;
         msgObj.content = msgObj.content ?? '';
     }
+    console.log(msgObj)
     if (extra && typeof extra === 'object') {
         Object.assign(msgObj, extra);
     }
@@ -330,7 +333,9 @@ const createToolbarHandler = (msgType, callback: any | unknown = {
                 messageList.value.push(createMessageObject({
                     msgType,
                     senderType: "client",
-                    fileUrl: res.content ?? null,
+                    file_url: res.file_url ?? "",
+                    file: res.file ?? null,
+                    content: res.content ?? "",
                     baseMsg: {
                         id: res.msgId || Date.now() + Math.random(),
                         avatar: accountInfo.value.avatar,
@@ -350,7 +355,7 @@ const createToolbarHandler = (msgType, callback: any | unknown = {
 
             case "error":
                 msg = messageList.value.find((m) => m.id === res.msgId);
-                return;
+                // return;
                 if (msg) {
                     msg.uploadStatus = "failed";
                     msg.progress = 0;
@@ -362,7 +367,7 @@ const createToolbarHandler = (msgType, callback: any | unknown = {
                 break;
 
             case "success":
-                return;
+                // return;
                 // 兼容不同资源类型：imageUrl / audioUrl / videoUrl
                 const url = res.result?.[msgType + 'Url'] || "";
                 msg = messageList.value.find((m) => m.id === res.msgId);
@@ -384,6 +389,7 @@ const createToolbarHandler = (msgType, callback: any | unknown = {
                 });
                 initConversationList();
                 break;
+
         }
     };
 };
@@ -394,15 +400,18 @@ const createToolbarHandler = (msgType, callback: any | unknown = {
  * @param {string} toolbarRefName - 工具栏组件 ref 名称
  * @returns {Function} 事件处理函数
  */
-const createMessageHandler = (toolbarRefName) => {
+const createMessageHandler = (toolbarRefName, callback: any | unknown = {
+    readCallback: Function
+}) => {
     return (res) => {
+        let msg: any = {};
         switch (res.event) {
             case "cancel":
                 proxy?.$refs[toolbarRefName]?.cancelUpload(res.msgId);
                 break;
-
             case "retry":
-                const msg = messageList.value.find((m) => m.id === res.msgId);
+                msg = messageList.value.find((m) => m.id === res.msgId);
+                console.log(msg)
                 const file = msg?.file;
                 if (!file) {
                     console.warn("文件已失效，请重新选择");
@@ -412,6 +421,15 @@ const createMessageHandler = (toolbarRefName) => {
                 msg.uploadStatus = "uploading";
                 msg.progress = 0;
                 proxy?.$refs[toolbarRefName]?.retryUpload(msg.id, file);
+                break;
+            case "read":
+                msg = messageList.value.find((m) => m.id === res.msgId);
+                if (msg) {
+                    msg.is_read = 1;
+                }
+                if (callback && callback?.readCallback) {
+                    callback.readCallback(msg);
+                }
                 break;
         }
     };
@@ -457,7 +475,16 @@ const onChangeToolbarVideo = createToolbarHandler("video", {
 const onChangeMessageImage = createMessageHandler("imToolbarImageComponentRef");
 
 /** 音频消息回调 */
-const onChangeMessageAudio = createMessageHandler("imToolbarAudioComponentRef");
+const onChangeMessageAudio = createMessageHandler("imToolbarAudioComponentRef", {
+    readCallback: (msg: any) => {
+        nextTick(() => {
+            const refName = `imMessageAudioComponentRef${msg.id}`;
+            if (proxy?.$refs[refName] && proxy?.$refs[refName][0]) {
+                proxy?.$refs[refName][0].init(msg);
+            }
+        });
+    }
+});
 
 /** 视频消息回调 */
 const onChangeMessageVideo = createMessageHandler("imToolbarVideoComponentRef");

@@ -17,15 +17,9 @@
         </div>
         <!-- 上传成功 -->
         <div v-else class="video-success-wrapper">
-            <video
-                :src="videoUrl"
-                class="video-player"
-                @click="togglePlay"
-                @loadedmetadata="onLoadedMetadata"
-                @timeupdate="onTimeUpdate"
-                @ended="onEnded"
-                preload="metadata"
-            ></video>
+            <video ref="videoElementRef" :src="videoUrl" class="video-player" @click="togglePlay"
+                @loadedmetadata="onLoadedMetadata" @timeupdate="onTimeUpdate" @ended="onEnded" @canplay="onCanPlay"
+                @canplaythrough="onCanPlayThrough" @error="onError" preload="metadata"></video>
             <!-- 播放覆盖层（视频未播放时显示） -->
             <div v-if="!isPlaying && videoUrl" class="video-play-overlay" @click="togglePlay">
                 <div class="play-icon icon icon-bofang"></div>
@@ -53,31 +47,33 @@ const props = withDefaults(
 const emit = defineEmits(['change']);
 
 /* ================= 视频播放逻辑 ================= */
-const videoElement = ref<HTMLVideoElement | null>(null);
-const isPlaying = ref(false);
-const currentTime = ref(0);
-const duration = ref(0);
+const videoElementRef = ref<HTMLVideoElement | null>(null);
+const isPlaying = ref<boolean>(false);
+const currentTime = ref<Number>(0);
+const duration = ref<any>(0);
 
 const videoUrl = computed(() => props.msg.file_url || props.msg.content);
 
 const durationText = computed(() => formatTime(duration.value));
 
 const togglePlay = () => {
-    if (!videoElement.value) return;
+    if (!videoElementRef.value) return;
     if (isPlaying.value) {
-        videoElement.value.pause();
+        videoElementRef.value.pause();
     } else {
-        videoElement.value.play();
+        videoElementRef.value.play();
     }
 };
 
 const onTimeUpdate = () => {
-    currentTime.value = videoElement.value?.currentTime || 0;
+    currentTime.value = videoElementRef.value?.currentTime || 0;
 };
 
 const onLoadedMetadata = () => {
-    duration.value = videoElement.value?.duration || 0;
+    duration.value = videoElementRef.value?.duration || 0;
     isPlaying.value = false;
+
+    console.log('原始分辨率：', videoElementRef.value?.videoWidth, 'x', videoElementRef.value?.videoHeight)
 };
 
 const onEnded = () => {
@@ -85,6 +81,17 @@ const onEnded = () => {
     currentTime.value = 0;
 };
 
+const onCanPlay = () => {
+    console.log('可以开始播放，但可能还会缓冲')
+}
+
+const onCanPlayThrough = () => {
+    console.log('预计可流畅播放到结束')
+}
+
+const onError = () => {
+    console.error('视频加载失败')
+}
 const formatTime = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -144,9 +151,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    if (videoElement.value) {
-        videoElement.value.pause();
-        videoElement.value = null;
+    if (videoElementRef.value) {
+        videoElementRef.value.pause();
+        videoElementRef.value = null;
     }
 });
 

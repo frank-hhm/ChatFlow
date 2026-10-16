@@ -45,7 +45,7 @@ const handleVideoFiles = async (files: any[]) => {
         // 1. 先生成本地消息（上传中状态）
         const msgId = Date.now() + Math.random();
         console.log('开始处理视频文件:', file.name);
-        emit('change', { event: 'start', msgId, content: file, progress: 0 });
+        emit('change', { event: 'start', msgId, file: file, progress: 0 });
 
         // 2. 执行上传
         try {
