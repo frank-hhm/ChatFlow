@@ -79,11 +79,17 @@
                     <div class="toolbar-item">
                         <imToolbarVideoComponent ref="imToolbarVideoComponentRef" @change="onChangeToolbarVideo" />
                     </div>
+                    <!-- o -->
+                    <!-- 视频工具 -->
+                    <div class="toolbar-item">
+                        <imToolbarScreenshotComponent></imToolbarScreenshotComponent>
+                    </div>
                 </div>
                 <div class="bottom-input-wrap" :class="{ 'drag-over': isDragOver }" @dragover.prevent="onDragOver"
                     @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
                     <textarea class="bottom-input-wrap-textarea" ref="textareaRef" v-model="newMessageText"
-                        placeholder="输入消息，Enter 发送" @keydown.enter.exact="onSendMessage" @keydown.enter.exact.prevent />
+                        placeholder="输入消息，Enter 发送" @keydown.enter.exact="onSendMessage" @keydown.enter.exact.prevent
+                        @paste="onTextareaPaste" />
                     <div class="send-message-btn" :class="{ disabled: !newMessageText.trim() }" @click="onSendMessage">
                         发送</div>
                 </div>
@@ -99,6 +105,7 @@ import { storeToRefs } from "pinia";
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import imToolbarEmojiPickerComponent from "@/views/components/im/toolbar/emoji.vue"
 import imToolbarImageComponent from "@/views/components/im/toolbar/image.vue"
+import imToolbarScreenshotComponent from "@/views/components/im/toolbar/screenshot.vue"
 import imMessageTextComponent from "@/views/components/im/message/text.vue"
 import imMessageImageComponent from "@/views/components/im/message/image.vue"
 import imToolbarAudioComponent from "@/views/components/im/toolbar/audio.vue"
@@ -504,6 +511,31 @@ const onDrop = (event: any) => {
     proxy?.$refs["imToolbarImageComponentRef"]?.onDrop(event);
 
 }
+
+/**
+ * 粘贴发送图片：从剪贴板中提取图片文件（如截图、复制的图片），
+ * 复用图片工具栏的“上传 + WebSocket 发送”链路。
+ * 若剪贴板仅为文本，则不拦截，保留默认粘贴文本行为。
+ */
+const onTextareaPaste = (event: any) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles: any[] = [];
+    for (const item of items) {
+        if (item.kind === "file" && item.type && item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) imageFiles.push(file);
+        }
+    }
+
+    if (imageFiles.length === 0) return; // 无图片：交给默认粘贴（文本）
+
+    event.preventDefault();
+    // 未选中会话时不允许发送
+    if (!itemConversation.value.id) return;
+    proxy?.$refs["imToolbarImageComponentRef"]?.handleImageFiles(imageFiles, "paste");
+};
 
 
 /* ================= 获取消息数 ================= */

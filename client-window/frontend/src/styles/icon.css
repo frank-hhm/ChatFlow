@@ -1,9 +1,9 @@
 @font-face {
   font-family: "icon";
   /* Project id 2191064 */
-  src: url('./font/iconfont.woff2?t=11') format('woff2'),
-    url('./font/iconfont.woff?t=21') format('woff'),
-    url('./font/iconfont.ttf?t=31') format('truetype');
+  src: url('./font/iconfont.woff2?t=12') format('woff2'),
+    url('./font/iconfont.woff?t=11') format('woff'),
+    url('./font/iconfont.ttf?t=11') format('truetype');
 }
 
 .icon {
@@ -30,24 +30,8 @@
   content: "\e63c";
 }
 
-.icon-jingcaishipin:before {
-  content: "\e7bb";
-}
-
-.icon-shipin4:before {
-  content: "\e615";
-}
-
-.icon-a-080_shipin:before {
-  content: "\e7bc";
-}
-
 .icon-folder-video-fill:before {
   content: "\e7be";
-}
-
-.icon-shipin5:before {
-  content: "\e7bf";
 }
 
 .icon-fuhao-yinpin:before {
@@ -60,10 +44,6 @@
 
 .icon-baseline-music_note-px:before {
   content: "\e7b7";
-}
-
-.icon-yinpinwenjian:before {
-  content: "\e7b8";
 }
 
 .icon-yinpin1:before {
@@ -80,18 +60,6 @@
 
 .icon-yinpin3:before {
   content: "\e603";
-}
-
-.icon-yinpinwenjian1:before {
-  content: "\ebfd";
-}
-
-.icon-yinpin5:before {
-  content: "\e652";
-}
-
-.icon-yinpin-1:before {
-  content: "\e653";
 }
 
 .icon-tongxunlu:before {

@@ -1,159 +1,195 @@
 <template>
     <div class="message-content-video">
-        <!-- 上传中 -->
-        <div v-if="msg.uploadStatus === 'uploading'" class="video-upload-wrapper">
-            <div class="video-icon icon icon-shipin"></div>
-            <div class="video-upload-info">
-                <a-progress type="circle" status="warning" :percent="parseFloat(msg.progress || 0) / 100" />
-                <span class="uploading-text">上传中...</span>
+        <!-- ① 自己发送：上传中（微信式：缩略图 + 环形进度百分比） -->
+        <div v-if="isSelf && msg.uploadStatus === 'uploading'" class="video-box">
+            <video class="video-cover" :src="coverUrl" muted preload="metadata" @loadedmetadata="onMetadata" />
+            <div class="mask">
+                <a-progress type="circle" :percent="uploadPercent / 100" :width="56" :stroke-width="5"
+                    :color="'#ffffff'" :trail-color="'rgba(255,255,255,0.25)'" />
             </div>
-            <div class="upload-cancel icon icon-cuo" @click="cancelUpload(msg.id)"></div>
+            <div class="cancel-btn icon icon-cuo" @click="cancelUpload(msg.id)"></div>
         </div>
-        <!-- 上传失败 -->
-        <div v-else-if="msg.uploadStatus === 'failed'" class="video-failed-wrapper">
-            <div class="failed-icon icon icon-tishi"></div>
-            <div class="failed-text">上传失败</div>
-            <div class="upload-retry icon icon-shuaxin" @click="retryUpload(msg)"></div>
-        </div>
-        <!-- 上传成功 -->
-        <div v-else class="video-success-wrapper">
-            <video ref="videoElementRef" :src="videoUrl" class="video-player" @click="togglePlay"
-                @loadedmetadata="onLoadedMetadata" @timeupdate="onTimeUpdate" @ended="onEnded" @canplay="onCanPlay"
-                @canplaythrough="onCanPlayThrough" @error="onError" preload="metadata"></video>
-            <!-- 播放覆盖层（视频未播放时显示） -->
-            <div v-if="!isPlaying && videoUrl" class="video-play-overlay" @click="togglePlay">
-                <div class="play-icon icon icon-bofang"></div>
+
+        <!-- ② 自己发送：失败（红点，点击重试） -->
+        <div v-else-if="isSelf && msg.uploadStatus === 'failed'" class="video-box">
+            <video class="video-cover" :src="coverUrl" muted preload="metadata" @loadedmetadata="onMetadata" />
+            <div class="mask mask-click" @click="retryUpload(msg)">
+                <div class="failed-icon icon icon-tishi"></div>
+                <span class="mask-text">发送失败，点击重试</span>
             </div>
-            <!-- 时长标签 -->
+        </div>
+
+        <!-- ③ 就绪：接收的消息 / 自己已发送成功 —— 点击才下载，下载中显示进度，完成就地播放 -->
+        <div v-else class="video-box">
+            <!-- 已下载：就地播放 -->
+            <video v-if="downloadState === 'done' && objectUrl" class="video-player" :src="objectUrl" controls
+                autoplay playsinline @loadedmetadata="onMetadata" @error="onPlayError"></video>
+
+            <!-- 未下载：封面 + 中央按钮（微信：不自动下载） -->
+            <template v-else>
+                <video ref="videoCoverRef" class="video-cover" :src="coverUrl" muted preload="metadata"
+                    @loadedmetadata="onMetadata" @error="onCoverError" />
+                <div class="center-overlay" @click="startPlayOrDownload">
+                    <!-- 下载中：环形进度 -->
+                    <a-progress v-if="downloadState === 'downloading'" type="circle" :percent="downloadPercent / 100"
+                        :width="56" :stroke-width="5" :color="'#ffffff'" :trail-color="'rgba(255,255,255,0.25)'" />
+                    <!-- 下载失败：重试 -->
+                    <template v-else-if="downloadState === 'error'">
+                        <div class="failed-icon icon icon-tishi"></div>
+                    </template>
+                    <!-- 待下载：播放/下载按钮 -->
+                    <div v-else class="play-btn icon icon-bofang"></div>
+                </div>
+                <!-- 接收提示（微信在角落显示大小/时长；这里显示时长） -->
+            </template>
+
             <span v-if="durationText" class="video-duration-tag">{{ durationText }}</span>
-            <!-- 文件大小标签 -->
-            <span v-if="fileSizeText" class="video-size-tag">{{ fileSizeText }}</span>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const props = withDefaults(
     defineProps<{
-        msg?: Object | any;
+        msg?: any;
     }>(),
-    {
-        msg: () => ({}),
-    }
+    { msg: () => ({}) }
 );
 
 const emit = defineEmits(['change']);
 
-/* ================= 视频播放逻辑 ================= */
-const videoElementRef = ref<HTMLVideoElement | null>(null);
-const isPlaying = ref<boolean>(false);
-const currentTime = ref<Number>(0);
-const duration = ref<any>(0);
+/* ================= 基础判定 ================= */
+const isSelf = computed(() => props.msg.sender_type === 'client');
+const remoteUrl = computed(() => props.msg.file_url || props.msg.content || '');
 
-const videoUrl = computed(() => props.msg.file_url || props.msg.content);
+/* ================= 发送进度 ================= */
+const uploadPercent = computed(() => {
+    const p = Number(props.msg.progress || 0);
+    return Math.max(0, Math.min(100, Math.round(p)));
+});
 
+/* ================= 封面 ================= */
+// 自己发送时优先用本地文件即时生成封面/预览；接收时使用远程地址（仅预载首帧）
+const selfFileUrl = ref<string>('');
+const coverUrl = computed(() => selfFileUrl.value || remoteUrl.value);
+
+const videoCoverRef = ref<HTMLVideoElement | null>(null);
+const duration = ref<number>(0);
 const durationText = computed(() => formatTime(duration.value));
-
-const togglePlay = () => {
-    if (!videoElementRef.value) return;
-    if (isPlaying.value) {
-        videoElementRef.value.pause();
-    } else {
-        videoElementRef.value.play();
+const onMetadata = (e?: any) => {
+    const el = (e && e.target) || videoCoverRef.value;
+    if (el && el.duration && !isNaN(el.duration)) {
+        duration.value = el.duration;
+    } else if (!duration.value && props.msg.duration) {
+        duration.value = props.msg.duration;
     }
 };
-
-const onTimeUpdate = () => {
-    currentTime.value = videoElementRef.value?.currentTime || 0;
+const onCoverError = () => {
+    // 封面加载失败（远程不可达）时保持占位，不影响点击下载
+};
+const onPlayError = () => {
+    console.error('视频播放失败', remoteUrl.value);
 };
 
-const onLoadedMetadata = () => {
-    duration.value = videoElementRef.value?.duration || 0;
-    isPlaying.value = false;
-
-    console.log('原始分辨率：', videoElementRef.value?.videoWidth, 'x', videoElementRef.value?.videoHeight)
-};
-
-const onEnded = () => {
-    isPlaying.value = false;
-    currentTime.value = 0;
-};
-
-const onCanPlay = () => {
-    console.log('可以开始播放，但可能还会缓冲')
-}
-
-const onCanPlayThrough = () => {
-    console.log('预计可流畅播放到结束')
-}
-
-const onError = () => {
-    console.error('视频加载失败')
-}
 const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
+    if (!seconds || isNaN(seconds)) return '';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return mins + ':' + (secs < 10 ? '0' : '') + secs;
 };
 
-/* ================= 文件大小格式化 ================= */
-const fileSizeBytes = ref<number | null>(null);
+/* ================= 接收下载状态机（模仿微信：点击才下载 + 进度） ================= */
+type DownloadState = 'idle' | 'downloading' | 'done' | 'error';
+const downloadState = ref<DownloadState>('idle');
+const downloadPercent = ref<number>(0);
+const objectUrl = ref<string>('');
 
-const fetchFileSize = async (url: string) => {
-    if (!url) return;
+const startPlayOrDownload = async () => {
+    // 自己发送成功且有本地文件：直接本地播放，无需下载
+    if (isSelf.value && selfFileUrl.value) {
+        objectUrl.value = selfFileUrl.value;
+        downloadState.value = 'done';
+        return;
+    }
+    if (!remoteUrl.value) return;
+
+    downloadState.value = 'downloading';
+    downloadPercent.value = 0;
+
     try {
-        const res = await fetch(url, { method: 'HEAD' });
-        const size = res.headers.get('content-length');
-        if (size) {
-            fileSizeBytes.value = parseInt(size, 10);
+        const resp = await fetch(remoteUrl.value);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+        const total = Number(resp.headers.get('content-length')) || 0;
+
+        // 无流（旧环境）降级：整体读取
+        if (!resp.body) {
+            const blob = await resp.blob();
+            objectUrl.value = URL.createObjectURL(blob);
+            downloadPercent.value = 100;
+            downloadState.value = 'done';
+            return;
         }
+
+        const reader = resp.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+                chunks.push(value);
+                received += value.length;
+                if (total) {
+                    // 预留 100% 给拼装完成，避免“假到 100  yet 仍在拼”
+                    downloadPercent.value = Math.min(99, Math.floor((received / total) * 100));
+                }
+            }
+        }
+
+        const mime = resp.headers.get('content-type') || 'video/mp4';
+        const blob = new Blob(chunks as unknown as BlobPart[], { type: mime });
+        objectUrl.value = URL.createObjectURL(blob);
+        downloadPercent.value = 100;
+        downloadState.value = 'done';
     } catch (e) {
-        try {
-            const res = await fetch(url);
-            const blob = await res.blob();
-            fileSizeBytes.value = blob.size;
-        } catch (e2) {
-            console.warn('获取视频大小失败', url, e2);
-        }
+        console.error('视频下载失败', e);
+        downloadState.value = 'error';
     }
 };
 
-const fileSizeText = computed(() => {
-    const size = fileSizeBytes.value;
-    if (!size) return '';
-    if (size < 1024) return size + ' B';
-    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
-    return (size / (1024 * 1024)).toFixed(1) + ' MB';
-});
-
-/* ================= 上传控制 ================= */
+/* ================= 发送控制 ================= */
 const cancelUpload = (msgId: any) => {
     emit('change', { event: 'cancel', msgId });
 };
-
 const retryUpload = (msg: any) => {
     emit('change', { event: 'retry', msgId: msg.id });
 };
 
 /* ================= 生命周期 ================= */
-const init = () => {
-    const url = videoUrl.value;
-    if (url) {
-        fetchFileSize(url);
-    }
-};
+// 兼容 index.vue 成功回调中的 init() 调用
+const init = () => { };
 
 onMounted(() => {
-    init();
+    if (isSelf.value && props.msg.file) {
+        try {
+            selfFileUrl.value = URL.createObjectURL(props.msg.file);
+        } catch (e) {
+            /* ignore */
+        }
+    }
 });
 
 onBeforeUnmount(() => {
-    if (videoElementRef.value) {
-        videoElementRef.value.pause();
-        videoElementRef.value = null;
+    if (videoCoverRef.value) {
+        videoCoverRef.value.pause?.();
+    }
+    if (selfFileUrl.value) URL.revokeObjectURL(selfFileUrl.value);
+    if (objectUrl.value && objectUrl.value !== selfFileUrl.value) {
+        URL.revokeObjectURL(objectUrl.value);
     }
 });
 
@@ -165,135 +201,116 @@ defineExpose({ init });
     position: relative;
     display: flex;
     align-items: flex-end;
-    max-width: 320px;
 
-    .upload-cancel,
-    .upload-retry {
-        margin-left: 10px;
-        height: 20px;
-        line-height: 20px;
-        width: 20px;
+    .video-box {
+        position: relative;
+        width: 180px;
+        max-width: 320px;
+        min-height: 100px;
+        border-radius: var(--base-radius-default);
+        overflow: hidden;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-cover,
+    .video-player {
+        display: block;
+        width: 100%;
+        max-height: 240px;
+        object-fit: cover;
+    }
+
+    /* 上传中/失败的半透明遮罩 */
+    .mask {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: rgba(0, 0, 0, 0.4);
+
+        &.mask-click {
+            cursor: pointer;
+        }
+    }
+
+    .mask-text {
+        color: #fff;
         font-size: 12px;
+    }
+
+    .failed-icon {
+        font-size: 28px;
+        color: #f56c6c;
+    }
+
+    /* 取消按钮（右上角） */
+    .cancel-btn {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 22px;
+        height: 22px;
+        line-height: 22px;
         text-align: center;
-        color: #000;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 20px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
+        font-size: 12px;
         cursor: pointer;
         user-select: none;
 
         &:hover {
-            color: #fff;
+            background: rgba(0, 0, 0, 0.7);
         }
     }
 
-    /* 上传中 */
-    .video-upload-wrapper {
+    /* 未下载时的中央按钮 */
+    .center-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: var(--color-bg-1);
-        border-radius: var(--base-radius-default);
-
-        .video-icon {
-            font-size: 24px;
-            color: var(--color-text-2);
-        }
-
-        .video-upload-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-
-            .uploading-text {
-                font-size: 12px;
-                color: var(--color-text-3);
-            }
-        }
+        justify-content: center;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.15);
     }
 
-    /* 上传失败 */
-    .video-failed-wrapper {
+    .play-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        background: #fef0f0;
-        border: 1px solid #fde2e2;
-        border-radius: var(--base-radius-default);
-
-        .failed-icon {
-            font-size: 20px;
-            color: #f56c6c;
-        }
-
-        .failed-text {
-            font-size: 12px;
-            color: #f56c6c;
-        }
+        justify-content: center;
+        font-size: 22px;
     }
 
-    /* 上传成功 */
-    .video-success-wrapper {
-        position: relative;
-        display: inline-block;
-        border-radius: var(--base-radius-default);
-        overflow: hidden;
-        background: var(--color-bg-1);
-
-        .video-player {
-            display: block;
-            max-width: 320px;
-            max-height: 240px;
-            border-radius: var(--base-radius-default);
-            cursor: pointer;
-        }
-
-        .video-play-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.3);
-            cursor: pointer;
-
-            .play-icon {
-                font-size: 40px;
-                color: #fff;
-                opacity: 0.9;
-            }
-        }
-
-        .video-duration-tag {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            padding: 2px 6px;
-            font-size: 11px;
-            color: #fff;
-            background: rgba(0, 0, 0, 0.55);
-            border-radius: 4px;
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .video-size-tag {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            padding: 2px 6px;
-            font-size: 11px;
-            color: #fff;
-            background: rgba(0, 0, 0, 0.55);
-            border-radius: 4px;
-            pointer-events: none;
-            user-select: none;
-        }
+    /* 时长标签 */
+    .video-duration-tag {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        padding: 2px 6px;
+        font-size: 11px;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.55);
+        border-radius: 4px;
+        pointer-events: none;
+        user-select: none;
     }
 }
 </style>

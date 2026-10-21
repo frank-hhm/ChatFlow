@@ -1,0 +1,87 @@
+
+# 此文件包含此项目的配置。
+# 当你更新 `info` 或 `fileAssociations` 时，运行 `wails3 task common:update:build-assets` 来更新资源。
+# 注意：这将覆盖你对资源所做的任何更改。
+version: '3'
+
+# 以下信息用于生成构建资源。
+info:
+  companyName: "我的公司" # 公司名
+  productName: "我的产品" # 应用程序名
+  productIdentifier: "com.mycompany.myproduct" # 唯一产品标识符
+  description: "一个做X的程序" # 应用程序描述
+  copyright: "(c) 2025, 我的公司" # 版权声明
+  comments: "一些产品注释" # 注释
+  version: "0.0.1" # 应用程序版本
+  # cfBundleIconName: "appicon" # Assets.car 图标包中的 macOS 图标名（可选）
+  #                               # 应与你的 .icon 文件名（不含扩展名）匹配
+  #                               # 如果未设置且 Assets.car 存在，则默认为 "appicon"
+
+# iOS 构建配置（取消注释以自定义 iOS 项目生成）
+# 注意：`ios` 下的键会覆盖 `info` 中设置的值。
+# ios:
+#   # iOS 捆绑标识符，用于生成的 Xcode 项目（CFBundleIdentifier）
+#   bundleID: "com.mycompany.myproduct"
+#   # 应用图标下显示的名称（CFBundleDisplayName/CFBundleName）
+#   displayName: "我的产品"
+#   # 嵌入 Info.plist 的应用版本（CFBundleShortVersionString/CFBundleVersion）
+#   version: "0.0.1"
+#   # 模板和项目设置的公司/组织名称
+#   company: "我的公司"
+#   # 嵌入 Info.plist 元数据的额外注释
+#   comments: "一些产品注释"
+
+# 开发模式配置
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+      - "*.js" # 监听通过 //wails:include 指令包含的 JS/TS 文件的变更。
+      - "*.ts" # 前端目录将通过上面的设置完全排除监听。
+    git_ignore: true
+  executes:
+    - cmd: wails3 build DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+      # 前端默认任务会等待 HTTP 200 响应（来自 FRONTEND_DEVSERVER_URL），最长等待 60s
+      # 如需覆盖可在此处配置；自定义后台命令也可通过相同方式注册就绪检查。
+      # readiness:
+      #   http: "http://localhost:5173/"
+      #   timeout: "60s"
+      #   interval: "200ms"
+    - cmd: wails3 task run
+      type: primary
+      exit_policy: shutdown
+
+# 文件关联
+# 更多信息请访问：https://v3.wails.io/noit/done/yet
+fileAssociations:
+#  - ext: wails
+#    name: Wails
+#    description: Wails 应用程序文件
+#    iconName: wailsFileIcon
+#    role: Editor
+#  - ext: jpg
+#    name: JPEG
+#    description: 图像文件
+#    iconName: jpegFileIcon
+#    role: Editor
+#    mimeType: image/jpeg  #（可选）
+
+# 其他数据
+other:
+  - name: My Other Data

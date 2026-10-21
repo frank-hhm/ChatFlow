@@ -53,7 +53,6 @@ const handleVideoFiles = async (files: any[]) => {
                 file,
                 msgId,
                 (percent: any) => {
-                    console.error('视频上传:', percent);
                     emit('change', { event: 'progress', msgId, progress: percent });
                 }
             );

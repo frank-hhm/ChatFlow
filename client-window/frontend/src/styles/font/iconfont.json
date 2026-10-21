@@ -34,39 +34,11 @@
       "unicode_decimal": 58940
     },
     {
-      "icon_id": "35269636",
-      "name": "精彩视频",
-      "font_class": "jingcaishipin",
-      "unicode": "e7bb",
-      "unicode_decimal": 59323
-    },
-    {
-      "icon_id": "35471738",
-      "name": "视频",
-      "font_class": "shipin4",
-      "unicode": "e615",
-      "unicode_decimal": 58901
-    },
-    {
-      "icon_id": "41172867",
-      "name": "080_视频",
-      "font_class": "a-080_shipin",
-      "unicode": "e7bc",
-      "unicode_decimal": 59324
-    },
-    {
       "icon_id": "42198989",
       "name": "folder-video-fill",
       "font_class": "folder-video-fill",
       "unicode": "e7be",
       "unicode_decimal": 59326
-    },
-    {
-      "icon_id": "42242609",
-      "name": "视频",
-      "font_class": "shipin5",
-      "unicode": "e7bf",
-      "unicode_decimal": 59327
     },
     {
       "icon_id": "1766262",
@@ -88,13 +60,6 @@
       "font_class": "baseline-music_note-px",
       "unicode": "e7b7",
       "unicode_decimal": 59319
-    },
-    {
-      "icon_id": "9881679",
-      "name": "KHCFDC_音频文件",
-      "font_class": "yinpinwenjian",
-      "unicode": "e7b8",
-      "unicode_decimal": 59320
     },
     {
       "icon_id": "14463324",
@@ -123,27 +88,6 @@
       "font_class": "yinpin3",
       "unicode": "e603",
       "unicode_decimal": 58883
-    },
-    {
-      "icon_id": "36180336",
-      "name": "音频文件1",
-      "font_class": "yinpinwenjian1",
-      "unicode": "ebfd",
-      "unicode_decimal": 60413
-    },
-    {
-      "icon_id": "41918501",
-      "name": "音频",
-      "font_class": "yinpin5",
-      "unicode": "e652",
-      "unicode_decimal": 58962
-    },
-    {
-      "icon_id": "41918502",
-      "name": "音频-1",
-      "font_class": "yinpin-1",
-      "unicode": "e653",
-      "unicode_decimal": 58963
     },
     {
       "icon_id": "12820180",

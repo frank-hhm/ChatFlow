@@ -193,5 +193,5 @@ const beforeUnmount = (() => {
     uploadAbortControllers.value = {};
 })
 
-defineExpose({ onDrop, retryUpload, cancelUpload, beforeUnmount });
+defineExpose({ onDrop, retryUpload, cancelUpload, beforeUnmount, handleImageFiles });
 </script>

@@ -322,9 +322,9 @@ const clearItem = () => {
     selectedData.value = {};
 }
 
-const selectItem = (item: any, index: number) => {
+const selectItem = (item: any, index: number|string) => {
     // console.log(item)
-    selectedIndex.value = index;
+    selectedIndex.value = Number(index);
     // 清除 marker
     clearMap();
     addMarker(item.location.lng, item.location.lat);
